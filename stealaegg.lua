@@ -1,11 +1,16 @@
--- CeboFinder - 100% Ultra-Fix (Keine Bounds/Spots, Nur echte Eier & Auto-Base)
+-- =====================================================================
+-- CeboFinder PRO - Ultimate Steal an Egg Master Script (Mobile Optimized)
+-- =====================================================================
+
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Altes UI sicher entfernen
+-- 1. Altes UI sicher bereinigen
 pcall(function()
     if CoreGui:FindFirstChild("CeboFinderMobile") then CoreGui.CeboFinderMobile:Destroy() end
     if LocalPlayer.PlayerGui:FindFirstChild("CeboFinderMobile") then LocalPlayer.PlayerGui.CeboFinderMobile:Destroy() end
@@ -43,10 +48,10 @@ TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = MainFrame
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0, 220, 0, 20)
+StatusLabel.Size = UDim2.new(0, 240, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Real Eggs Only (100% Fixed)"
+StatusLabel.Text = "■ Pro Remote Stealer Active"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -82,14 +87,14 @@ FloatingBtn.InputChanged:Connect(function(input)
         dragInput = input
     end
 end)
-game:GetService("UserInputService").InputChanged:Connect(function(input)
+UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
         FloatingBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
--- Sidebar
+-- Sidebar (Tabs)
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 120, 0, 250)
 Sidebar.Position = UDim2.new(0, 15, 0, 55)
@@ -130,7 +135,7 @@ FloatingBtn.Activated:Connect(function()
     FloatingBtn.Visible = false
 end)
 
--- Feed
+-- Feed Scroll-Container
 local FeedScroll = Instance.new("ScrollingFrame")
 FeedScroll.Size = UDim2.new(0, 365, 0, 250)
 FeedScroll.Position = UDim2.new(0, 140, 0, 55)
@@ -148,17 +153,31 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Harten Blacklist-Filter: Blockiert absolut alles aus deinem Video (Bounds, Spots, FireInternal etc.)
-local function isRealEggOnly(obj)
+-- 2. Automatische Remote-Erkennung für das Stehlen
+local function findStealRemote()
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+            local name = obj.Name:lower()
+            if name:find("steal") or name:find("egg") or name:find("grab") or name:find("collect") or name:find("take") then
+                return obj
+            end
+        end
+    end
+    return nil
+end
+local stealRemote = findStealRemote()
+
+-- 3. Ultra-Strikter Filter (Blockiert Bounds, Spots, Wände, Skripte)
+local function isValidEgg(obj)
     if not obj or not obj.Parent then return false end
     local name = obj.Name:lower()
     
-    -- Absolute Müll-Ausschlussliste basierend auf deinen Screenshots & Videos
-    if name:find("bounds") or name:find("spot") or name:find("fireinternal") or name:find("internal") or name:find("holder") or name:find("spawn") or name:find("zone") or name:find("area") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") or name:find("ceiling") or name:find("pipe") or name:find("light") or name:find("whirlpool") or name:find("rock") or name:find("section") or name:find("panel") or name:find("wall") or name:find("floor") or name:find("interior") or name:find("point") then
+    -- Blacklist gegen jeglichen Müll
+    if name:find("bounds") or name:find("spot") or name:find("fireinternal") or name:find("internal") or name:find("holder") or name:find("spawn") or name:find("zone") or name:find("area") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") or name:find("ceiling") or name:find("pipe") or name:find("light") or name:find("whirlpool") or name:find("rock") or name:find("section") or name:find("panel") or name:find("wall") or name:find("floor") or name:find("interior") or name:find("point") or name:find("models for") then
         return false
     end
     
-    -- Das Objekt muss explizit ein Ei sein und greifbar sein
+    -- Nur echte Eier, die physikalisch im Raum stehen
     if (name:find("egg") or name:find("ei")) and (obj:IsA("Model") or obj:IsA("BasePart")) then
         return true
     end
@@ -183,8 +202,9 @@ local function getPlayerBasePosition()
     return Vector3.new(0, 5, 0)
 end
 
-local function registerEggItem(obj)
-    if not isRealEggOnly(obj) then return end
+-- 4. GUI-Eintrag für jedes gefundene Ei erstellen
+local function registerEgg(obj)
+    if not isValidEgg(obj) then return end
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
     local itemFrame = Instance.new("Frame")
@@ -198,7 +218,7 @@ local function registerEggItem(obj)
     iCorner.CornerRadius = UDim.new(0, 6)
     iCorner.Parent = itemFrame
 
-    -- Icon für das Ei
+    -- Icon
     local icon = Instance.new("ImageLabel")
     icon.Size = UDim2.new(0, 36, 0, 36)
     icon.Position = UDim2.new(0, 7, 0, 7)
@@ -221,7 +241,7 @@ local function registerEggItem(obj)
     sub.Size = UDim2.new(0, 150, 0, 15)
     sub.Position = UDim2.new(0, 50, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Echtes Ei • Bereit"
+    sub.Text = "Live Egg • Bereit"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
@@ -258,7 +278,7 @@ local function registerEggItem(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- HINGEHEN, EI GREIFEN UND ZUR BASE ZURÜCKKEHREN
+    -- Klick-Logik: Hingehen, Remote triggern & Zurück zur Base laufen
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
@@ -273,7 +293,7 @@ local function registerEggItem(obj)
             end
             
             if targetPart then
-                -- 1. Exakt zum Ei hinlaufen
+                -- 1. Zum Ei hinlaufen
                 humanoid:MoveTo(targetPart.Position)
                 
                 local conn
@@ -284,8 +304,19 @@ local function registerEggItem(obj)
                     end
                     
                     local distance = (rootPart.Position - targetPart.Position).Magnitude
-                    if distance <= 7 then
-                        -- 2. ProximityPrompt und Touch auslösen ("Ei Stehlen")
+                    if distance <= 8 then
+                        -- 2. Server-Remote ausführen (Falls vorhanden)
+                        if stealRemote then
+                            pcall(function()
+                                if stealRemote:IsA("RemoteEvent") then
+                                    stealRemote:FireServer(obj)
+                                elseif stealRemote:IsA("RemoteFunction") then
+                                    stealRemote:InvokeServer(obj)
+                                end
+                            end)
+                        end
+                        
+                        -- 3. Fallback: ProximityPrompt / Touch auslösen
                         pcall(function()
                             for _, prompt in ipairs(obj:GetDescendants()) do
                                 if prompt:IsA("ProximityPrompt") then
@@ -301,8 +332,8 @@ local function registerEggItem(obj)
                             end
                         end)
                         
-                        -- 3. Automatisch zurück zur Base laufen
-                        task.wait(0.2)
+                        -- 4. Automatisch zurück zur Base laufen
+                        task.wait(0.3)
                         local basePos = getPlayerBasePosition()
                         humanoid:MoveTo(basePos)
                         
@@ -326,14 +357,14 @@ local function registerEggItem(obj)
     end)
 end
 
--- Globaler Scan
+-- Workspace scannen
 for _, obj in ipairs(Workspace:GetDescendants()) do
-    pcall(function() registerEggItem(obj) end)
+    pcall(function() registerEgg(obj) end)
 end
 
 Workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
-    pcall(function() registerEggItem(obj) end)
+    pcall(function() registerEgg(obj) end)
 end)
 
-print("CeboFinder 100% Fixed geladen!")
+print("CeboFinder PRO Master Script erfolgreich geladen!")
