@@ -1,4 +1,4 @@
--- CeboFinder - Nur Eier Filter & Sicherer Instant-Grab (Kein Sterben mehr)
+-- CeboFinder - Saubere Eier-Namen, Kein Sterben & ProximityPrompt Grabber
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -43,7 +43,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 100, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Only Eggs Scanner"
+StatusLabel.Text = "■ Clean Egg Grabber"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -153,16 +153,32 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- ULTRA-STRIKTER FILTER: Nur echte Eier! Alles andere (Pads, Modelle, Zonen) wird komplett blockiert.
-local function isRealEgg(obj)
+-- Funktion zur Bereinigung von hässlichen Dateipfaden (Meshes/...)
+local function getCleanEggName(fullName)
+    local name = fullName
+    -- Entfernt "Meshes/...", Dateiendungen und Batch-Nummern
+    name = name:gsub("Meshes/", "")
+    name = name:gsub("Steal an Egg Batch %d+_", "")
+    name = name:gsub("^_", "")
+    name = name:gsub("%.%w+", "")
+    name = name:gsub("MeshPart", "Egg")
+    
+    if name == "" or name:lower() == "egg" or name:match("^%s*$") then
+        name = "Secret Egg"
+    end
+    return name
+end
+
+-- Filter: Nur echte Eier, keine Map-Teile oder Pfade
+local function isRealEggOnly(obj)
     local name = obj.Name:lower()
     
-    -- Ausschluss von allem, was kein Ei ist
-    if name:find("pad") or name:find("host") or name:find("zone") or name:find("spawn") or name:find("hint") or name:find("room") or name:find("folder") or name:find("models for") then
+    -- Blockiere Map-Teile, Böden, Wände und Code-Ordner
+    if name:find("plane") or name:find("terrain") or name:find("floor") or name:find("wall") or name:find("pad") or name:find("zone") or name:find("spawn") or name:find("room") then
         return false
     end
     
-    -- Das Objekt MUSS das Wort "egg" im Namen haben!
+    -- Muss eindeutig ein Ei sein
     if name:find("egg") then
         return true
     end
@@ -170,12 +186,14 @@ local function isRealEgg(obj)
     return false
 end
 
--- Funktion zum Eintragen der Eier in den Live-Feed
-local function registerEgg(obj)
+-- Funktion zum Eintragen der Eier
+local function registerCleanEgg(obj)
     if not obj or (not obj:IsA("BasePart") and not obj:IsA("Model")) then return end
-    if not isRealEgg(obj) then return end
+    if not isRealEggOnly(obj) then return end
     
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
+
+    local cleanName = getCleanEggName(obj.Name)
 
     local itemFrame = Instance.new("Frame")
     itemFrame.Name = obj.Name .. "_" .. tostring(obj)
@@ -192,8 +210,8 @@ local function registerEgg(obj)
     t.Size = UDim2.new(0, 180, 0, 20)
     t.Position = UDim2.new(0, 10, 0, 8)
     t.BackgroundTransparency = 1
-    t.Text = obj.Name -- Zeigt exakt den Namen des Eis
-    t.TextColor3 = Color3.fromRGB(241, 196, 15) -- Gold/Gelb für Eier
+    t.Text = cleanName -- Schöner, sauberer Name!
+    t.TextColor3 = Color3.fromRGB(241, 196, 15)
     t.TextSize = 12
     t.Font = Enum.Font.GothamBold
     t.TextXAlignment = Enum.TextXAlignment.Left
@@ -240,7 +258,7 @@ local function registerEgg(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- SICHERER INSTANT-GRAB (Kein Tod durch Fallschaden/Glitch):
+    -- SICHERES GRABBEN (Kein Tod, automatisches Auslösen von Interaktionen/Prompts)
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
@@ -254,14 +272,28 @@ local function registerEgg(obj)
             end
             
             if targetPart then
-                -- 1. Jegliche Geschwindigkeit und Schwung stoppen, damit man beim Teleport nicht stirbt!
+                -- 1. Geschwindigkeit komplett stoppen, damit man absolut sicher nicht stirbt
                 rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                 
-                -- 2. Sicher ein kleines Stück ÜBER dem Ei platzieren (verhindert das Feststecken im Boden)
+                -- 2. Perfekt und sicher über dem Ei platzieren
                 rootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
                 
-                -- 3. Touch-Interaktion auslösen, um das Ei sofort zu grabben/einzusammeln
+                -- 3. Automatisches Auslösen von ProximityPrompts (Interaktions-E-Tasten / Greifen)
+                pcall(function()
+                    for _, prompt in ipairs(obj:GetDescendants()) do
+                        if prompt:IsA("ProximityPrompt") then
+                            fireproximityprompt(prompt)
+                        end
+                    end
+                    for _, prompt in ipairs(targetPart:GetDescendants()) do
+                        if prompt:IsA("ProximityPrompt") then
+                            fireproximityprompt(prompt)
+                        end
+                    end
+                end)
+                
+                -- 4. Touch-Interaktion als Backup auslösen
                 pcall(function()
                     if firetouchinterest then
                         firetouchinterest(rootPart, targetPart, 0)
@@ -279,7 +311,6 @@ local function registerEgg(obj)
         end)
     end)
     
-    -- Entfernt das Ei aus dem Feed, wenn es eingesammelt wurde
     obj.AncestryChanged:Connect(function()
         if not obj.Parent then
             itemFrame:Destroy()
@@ -289,13 +320,13 @@ end
 
 -- 1. Vorhandene Eier scannen
 for _, obj in ipairs(Workspace:GetDescendants()) do
-    registerEgg(obj)
+    registerCleanEgg(obj)
 end
 
--- 2. Live-Überwachung für neu spawnende Eier
+-- 2. Live-Überwachung für neue Eier
 Workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
-    registerEgg(obj)
+    registerCleanEgg(obj)
 end)
 
-print("CeboFinder Egg-Only Scanner & Safe Grab gestartet!")
+print("CeboFinder Clean Egg Grabber erfolgreich gestartet!")
