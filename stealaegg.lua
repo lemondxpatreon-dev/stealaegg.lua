@@ -1,4 +1,4 @@
--- CeboFinder - Perfekter Filter (Nur echte Eier, Hingehen & Base-Return)
+-- CeboFinder - Globaler Live-Scanner, Icons & Auto-Base-Return
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -43,10 +43,10 @@ TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = MainFrame
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0, 200, 0, 20)
+StatusLabel.Size = UDim2.new(0, 220, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Real Collectible Eggs Only"
+StatusLabel.Text = "■ Global Live Egg Scanner"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -148,47 +148,25 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Prüfen, ob das Objekt in einer fremden Base oder Wand ist
-local function isInsideEnemyBaseOrWall(obj)
-    local ancestor = obj.Parent
-    while ancestor and ancestor ~= Workspace do
-        local nameLower = ancestor.Name:lower()
-        if nameLower:find("base") or nameLower:find("plot") or nameLower:find("home") or nameLower:find("owner") or ancestor:IsA("Player") or ancestor:IsA("Backpack") then
-            if not nameLower:find(LocalPlayer.Name:lower()) then
-                return true
-            end
-        end
-        ancestor = ancestor.Parent
-    end
-    return false
-end
-
--- EXTREM STRIKTER FILTER: Nur echte sammelbare Eier (keine "Models for...", keine Interiors, keine Walls, keine Points)
-local function isRealCollectibleEgg(obj)
+-- Strikter Blacklist-Filter gegen FireInternal, EggIspotBottom, Wände, Meshes etc.
+local function isRealGlobalEgg(obj)
     if not obj or not obj.Parent then return false end
-    if isInsideEnemyBaseOrWall(obj) then return false end
-    
     local name = obj.Name:lower()
     
-    -- Sämtlichen Müll, Ordner, Wände, Interiors und Punkte strikt ausschließen
-    if name:find("models for") or name:find("interior") or name:find("wall") or name:find("point") or name:find("holder") or name:find("spawn") or name:find("zone") or name:find("area") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") or name:find("ceiling") or name:find("pipe") or name:find("light") or name:find("whirlpool") or name:find("rock") or name:find("section") or name:find("panel") or name:find("floor") then
+    -- Komplett ausschließen: Interne Skripte, Spawns, Spots, Wände, Müll
+    if name:find("fireinternal") or name:find("ispot") or name:find("spot") or name:find("internal") or name:find("holder") or name:find("spawn") or name:find("zone") or name:find("area") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") or name:find("ceiling") or name:find("pipe") or name:find("light") or name:find("whirlpool") or name:find("rock") or name:find("section") or name:find("panel") or name:find("wall") or name:find("floor") or name:find("interior") or name:find("point") then
         return false
     end
     
-    -- Muss das Wort "egg" enthalten und ein Model oder BasePart mit gültiger Position sein
-    if name:find("egg") or name:find("ei") then
-        if obj:IsA("BasePart") then
-            return true
-        elseif obj:IsA("Model") then
-            local p = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-            if p then return true end
-        end
+    -- Muss explizit "egg" oder "ei" im Namen haben und ein greifbares Objekt sein
+    if (name:find("egg") or name:find("ei")) and (obj:IsA("Model") or obj:IsA("BasePart")) then
+        return true
     end
     
     return false
 end
 
--- Ermittelt die eigene Base-Position zum Zurücklaufen
+-- Eigene Base ermitteln
 local function getPlayerBasePosition()
     for _, obj in ipairs(Workspace:GetDescendants()) do
         local name = obj.Name:lower()
@@ -205,8 +183,8 @@ local function getPlayerBasePosition()
     return Vector3.new(0, 5, 0)
 end
 
-local function registerEggItem(obj)
-    if not isRealCollectibleEgg(obj) then return end
+local function registerGlobalEgg(obj)
+    if not isRealGlobalEgg(obj) then return end
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
     local itemFrame = Instance.new("Frame")
@@ -219,10 +197,18 @@ local function registerEggItem(obj)
     local iCorner = Instance.new("UICorner")
     iCorner.CornerRadius = UDim.new(0, 6)
     iCorner.Parent = itemFrame
+
+    -- Bild / Icon neben dem Namen
+    local icon = Instance.new("ImageLabel")
+    icon.Size = UDim2.new(0, 36, 0, 36)
+    icon.Position = UDim2.new(0, 7, 0, 7)
+    icon.BackgroundTransparency = 1
+    icon.Image = "rbxassetid://6031094678" -- Standard Ei/Item Icon Asset
+    icon.Parent = itemFrame
     
     local t = Instance.new("TextLabel")
-    t.Size = UDim2.new(0, 180, 0, 20)
-    t.Position = UDim2.new(0, 10, 0, 8)
+    t.Size = UDim2.new(0, 150, 0, 20)
+    t.Position = UDim2.new(0, 50, 0, 8)
     t.BackgroundTransparency = 1
     t.Text = obj.Name
     t.TextColor3 = Color3.fromRGB(241, 196, 15)
@@ -232,10 +218,10 @@ local function registerEggItem(obj)
     t.Parent = itemFrame
     
     local sub = Instance.new("TextLabel")
-    sub.Size = UDim2.new(0, 180, 0, 15)
-    sub.Position = UDim2.new(0, 10, 0, 26)
+    sub.Size = UDim2.new(0, 150, 0, 15)
+    sub.Position = UDim2.new(0, 50, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Echtes Ei • Bereit"
+    sub.Text = "Global Live Egg"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
@@ -272,7 +258,7 @@ local function registerEggItem(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- EXAKTES HINGEHEN, EINSAMMELN UND ZURÜCK ZUR BASE
+    -- HINGEHEN, GREIFEN UND ZUR BASE ZURÜCKKEHREN
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
@@ -287,7 +273,7 @@ local function registerEggItem(obj)
             end
             
             if targetPart then
-                -- 1. Exakt zum echten Ei hinlaufen
+                -- 1. Zum Ei hinlaufen
                 humanoid:MoveTo(targetPart.Position)
                 
                 local conn
@@ -299,7 +285,7 @@ local function registerEggItem(obj)
                     
                     local distance = (rootPart.Position - targetPart.Position).Magnitude
                     if distance <= 7 then
-                        -- 2. Ei einsammeln / stehlen
+                        -- 2. Greifen / Einsammeln
                         pcall(function()
                             for _, prompt in ipairs(obj:GetDescendants()) do
                                 if prompt:IsA("ProximityPrompt") then
@@ -315,7 +301,7 @@ local function registerEggItem(obj)
                             end
                         end)
                         
-                        -- 3. Automatisch zurück zur Base laufen
+                        -- 3. Automatisch zurück zur Base
                         task.wait(0.2)
                         local basePos = getPlayerBasePosition()
                         humanoid:MoveTo(basePos)
@@ -340,21 +326,14 @@ local function registerEggItem(obj)
     end)
 end
 
--- Scan starten
-for _, obj in ipairs(Workspace:GetChildren()) do
-    if obj:IsA("Folder") or obj:IsA("Model") then
-        for _, child in ipairs(obj:GetDescendants()) do
-            pcall(function() registerEggItem(child) end)
-        end
-    end
-end
-for _, obj in ipairs(Workspace:GetChildren()) do
-    pcall(function() registerEggItem(obj) end)
+-- Globaler Workspace-Scan
+for _, obj in ipairs(Workspace:GetDescendants()) do
+    pcall(function() registerGlobalEgg(obj) end)
 end
 
 Workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
-    pcall(function() registerEggItem(obj) end)
+    pcall(function() registerGlobalEgg(obj) end)
 end)
 
-print("CeboFinder erfolgreich geladen!")
+print("CeboFinder Global Live Egg Scanner erfolgreich geladen!")
