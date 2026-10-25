@@ -1,4 +1,4 @@
--- CeboFinder - Nur echte freie Welt-Eier (Keine fremden Basen / Wände) & Auto-Base-Return
+-- CeboFinder - Perfekter Filter (Nur echte Eier, Hingehen & Base-Return)
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -46,7 +46,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 200, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Free World Eggs Only"
+StatusLabel.Text = "■ Real Collectible Eggs Only"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -148,12 +148,11 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Funktion zum Prüfen, ob das Ei in einer fremden Base oder Wand ist
+-- Prüfen, ob das Objekt in einer fremden Base oder Wand ist
 local function isInsideEnemyBaseOrWall(obj)
     local ancestor = obj.Parent
     while ancestor and ancestor ~= Workspace do
         local nameLower = ancestor.Name:lower()
-        -- Wenn es in einer fremden Base, einem Plot oder Inventar liegt -> Ignorieren
         if nameLower:find("base") or nameLower:find("plot") or nameLower:find("home") or nameLower:find("owner") or ancestor:IsA("Player") or ancestor:IsA("Backpack") then
             if not nameLower:find(LocalPlayer.Name:lower()) then
                 return true
@@ -164,23 +163,26 @@ local function isInsideEnemyBaseOrWall(obj)
     return false
 end
 
--- Ultra-strikter Filter: Nur echte, erreichbare Welt-Eier (keine fremden Basen, keine Wände, keine Meshes)
-local function isValidWorldEgg(obj)
+-- EXTREM STRIKTER FILTER: Nur echte sammelbare Eier (keine "Models for...", keine Interiors, keine Walls, keine Points)
+local function isRealCollectibleEgg(obj)
     if not obj or not obj.Parent then return false end
     if isInsideEnemyBaseOrWall(obj) then return false end
     
     local name = obj.Name:lower()
     
-    -- Müll, Meshes und Map-Teile blockieren
-    if name:find("holder") or name:find("spawn") or name:find("zone") or name:find("area") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") or name:find("ceiling") or name:find("pipe") or name:find("light") or name:find("whirlpool") or name:find("rock") or name:find("internal") or name:find("section") or name:find("panel") or name:find("wall") or name:find("floor") then
+    -- Sämtlichen Müll, Ordner, Wände, Interiors und Punkte strikt ausschließen
+    if name:find("models for") or name:find("interior") or name:find("wall") or name:find("point") or name:find("holder") or name:find("spawn") or name:find("zone") or name:find("area") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") or name:find("ceiling") or name:find("pipe") or name:find("light") or name:find("whirlpool") or name:find("rock") or name:find("section") or name:find("panel") or name:find("floor") then
         return false
     end
     
-    if name:match("%d+_%d+") then return false end
-    
-    -- Muss explizit "egg" oder "ei" sein
-    if (name:find("egg") or name:find("ei")) and (obj:IsA("Model") or obj:IsA("BasePart")) then
-        return true
+    -- Muss das Wort "egg" enthalten und ein Model oder BasePart mit gültiger Position sein
+    if name:find("egg") or name:find("ei") then
+        if obj:IsA("BasePart") then
+            return true
+        elseif obj:IsA("Model") then
+            local p = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            if p then return true end
+        end
     end
     
     return false
@@ -204,7 +206,7 @@ local function getPlayerBasePosition()
 end
 
 local function registerEggItem(obj)
-    if not isValidWorldEgg(obj) then return end
+    if not isRealCollectibleEgg(obj) then return end
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
     local itemFrame = Instance.new("Frame")
@@ -233,7 +235,7 @@ local function registerEggItem(obj)
     sub.Size = UDim2.new(0, 180, 0, 15)
     sub.Position = UDim2.new(0, 10, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Freies Welt-Ei"
+    sub.Text = "Echtes Ei • Bereit"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
@@ -270,7 +272,7 @@ local function registerEggItem(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- HINGEHEN, EINSAMMELN UND AUTOMATISCH ZUR BASE ZURÜCKLAUFEN
+    -- EXAKTES HINGEHEN, EINSAMMELN UND ZURÜCK ZUR BASE
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
@@ -285,7 +287,7 @@ local function registerEggItem(obj)
             end
             
             if targetPart then
-                -- 1. Zum Ei hinlaufen
+                -- 1. Exakt zum echten Ei hinlaufen
                 humanoid:MoveTo(targetPart.Position)
                 
                 local conn
@@ -297,7 +299,7 @@ local function registerEggItem(obj)
                     
                     local distance = (rootPart.Position - targetPart.Position).Magnitude
                     if distance <= 7 then
-                        -- 2. Ei greifen / einsammeln
+                        -- 2. Ei einsammeln / stehlen
                         pcall(function()
                             for _, prompt in ipairs(obj:GetDescendants()) do
                                 if prompt:IsA("ProximityPrompt") then
