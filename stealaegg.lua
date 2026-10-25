@@ -1,11 +1,11 @@
--- CeboFinder - Saubere Eier-Namen, Kein Sterben & ProximityPrompt Grabber
+-- CeboFinder - Echtes Hingehen (Walk), Nur Echte Eier & Automatisches Greifen
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Altes UI entfernen falls vorhanden
 if CoreGui:FindFirstChild("CeboFinderMobile") then
     CoreGui.CeboFinderMobile:Destroy()
 end
@@ -15,7 +15,7 @@ ScreenGui.Name = "CeboFinderMobile"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
--- Hauptfenster (CeboFinder Design)
+-- Hauptfenster
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 520, 0, 320)
 MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
@@ -40,17 +40,17 @@ TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = MainFrame
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0, 100, 0, 20)
+StatusLabel.Size = UDim2.new(0, 120, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Clean Egg Grabber"
+StatusLabel.Text = "■ Walk & Grab Eggs"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
--- Verschiebbarer Kreis (erscheint beim Klick auf Hide)
+-- Verschiebbarer Kreis (Hide Button)
 local FloatingBtn = Instance.new("TextButton")
 FloatingBtn.Size = UDim2.new(0, 50, 0, 50)
 FloatingBtn.Position = UDim2.new(0, 50, 0, 50)
@@ -66,7 +66,6 @@ local FCorner = Instance.new("UICorner")
 FCorner.CornerRadius = UDim.new(1, 0)
 FCorner.Parent = FloatingBtn
 
--- Dragging-Logik für den Kreis auf dem Handy
 local dragging, dragInput, dragStart, startPos
 FloatingBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -94,7 +93,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Sidebar (Tabs)
+-- Sidebar
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 120, 0, 250)
 Sidebar.Position = UDim2.new(0, 15, 0, 55)
@@ -135,7 +134,7 @@ FloatingBtn.Activated:Connect(function()
     FloatingBtn.Visible = false
 end)
 
--- Live Feed Scroll-Container
+-- Feed
 local FeedScroll = Instance.new("ScrollingFrame")
 FeedScroll.Size = UDim2.new(0, 365, 0, 250)
 FeedScroll.Position = UDim2.new(0, 140, 0, 55)
@@ -153,47 +152,24 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Funktion zur Bereinigung von hässlichen Dateipfaden (Meshes/...)
-local function getCleanEggName(fullName)
-    local name = fullName
-    -- Entfernt "Meshes/...", Dateiendungen und Batch-Nummern
-    name = name:gsub("Meshes/", "")
-    name = name:gsub("Steal an Egg Batch %d+_", "")
-    name = name:gsub("^_", "")
-    name = name:gsub("%.%w+", "")
-    name = name:gsub("MeshPart", "Egg")
-    
-    if name == "" or name:lower() == "egg" or name:match("^%s*$") then
-        name = "Secret Egg"
-    end
-    return name
-end
-
--- Filter: Nur echte Eier, keine Map-Teile oder Pfade
-local function isRealEggOnly(obj)
+-- Strikter Filter: Nur echte Eier, blockiert Meshes, Planes, Cubes, Affen und Bauteile
+local function isRealEgg(obj)
     local name = obj.Name:lower()
     
-    -- Blockiere Map-Teile, Böden, Wände und Code-Ordner
-    if name:find("plane") or name:find("terrain") or name:find("floor") or name:find("wall") or name:find("pad") or name:find("zone") or name:find("spawn") or name:find("room") then
+    if name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("zone") or name:find("spawn") or name:find("room") or name:find("monkey") or name:find("gorilla") then
         return false
     end
     
-    -- Muss eindeutig ein Ei sein
-    if name:find("egg") then
+    if name:find("egg") and (obj:IsA("Model") or obj:IsA("BasePart")) then
         return true
     end
     
     return false
 end
 
--- Funktion zum Eintragen der Eier
-local function registerCleanEgg(obj)
-    if not obj or (not obj:IsA("BasePart") and not obj:IsA("Model")) then return end
-    if not isRealEggOnly(obj) then return end
-    
+local function registerRealEgg(obj)
+    if not isRealEgg(obj) then return end
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
-
-    local cleanName = getCleanEggName(obj.Name)
 
     local itemFrame = Instance.new("Frame")
     itemFrame.Name = obj.Name .. "_" .. tostring(obj)
@@ -210,7 +186,7 @@ local function registerCleanEgg(obj)
     t.Size = UDim2.new(0, 180, 0, 20)
     t.Position = UDim2.new(0, 10, 0, 8)
     t.BackgroundTransparency = 1
-    t.Text = cleanName -- Schöner, sauberer Name!
+    t.Text = "Echtes Ei"
     t.TextColor3 = Color3.fromRGB(241, 196, 15)
     t.TextSize = 12
     t.Font = Enum.Font.GothamBold
@@ -221,14 +197,14 @@ local function registerCleanEgg(obj)
     sub.Size = UDim2.new(0, 180, 0, 15)
     sub.Position = UDim2.new(0, 10, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Live Egg • Aktiv"
+    sub.Text = "Live Egg • Bereit"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
     sub.TextXAlignment = Enum.TextXAlignment.Left
     sub.Parent = itemFrame
     
-    -- STEHL Button (Aktiv & Grün)
+    -- STEHL Button
     local stealBtn = Instance.new("TextButton")
     stealBtn.Size = UDim2.new(0, 50, 0, 28)
     stealBtn.Position = UDim2.new(1, -115, 0, 11)
@@ -258,10 +234,11 @@ local function registerCleanEgg(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- SICHERES GRABBEN (Kein Tod, automatisches Auslösen von Interaktionen/Prompts)
+    -- AUTOMATISCHES HINGEHEN (Walk) UND EINSAMMELN
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
+        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
+            local humanoid = char.Humanoid
             local rootPart = char.HumanoidRootPart
             
             local targetPart = nil
@@ -272,13 +249,68 @@ local function registerCleanEgg(obj)
             end
             
             if targetPart then
-                -- 1. Geschwindigkeit komplett stoppen, damit man absolut sicher nicht stirbt
-                rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                -- Charakter geht ganz normal zum Ei hin
+                humanoid:MoveTo(targetPart.Position)
                 
-                -- 2. Perfekt und sicher über dem Ei platzieren
-                rootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
-                
+                -- Wartet, bis der Charakter nah genug ist, und sammelt es dann ein
+                local conn
+                conn = RunService.Heartbeat:Connect(function()
+                    if not targetPart or not targetPart.Parent then
+                        if conn then conn:Disconnect() end
+                        return
+                    end
+                    
+                    local distance = (rootPart.Position - targetPart.Position).Magnitude
+                    if distance <= 6 then
+                        -- ProximityPrompt auslösen falls vorhanden
+                        pcall(function()
+                            for _, prompt in ipairs(obj:GetDescendants()) do
+                                if prompt:IsA("ProximityPrompt") then
+                                    fireproximityprompt(prompt)
+                                end
+                            end
+                        end)
+                        
+                        -- Touch-Interaktion auslösen
+                        pcall(function()
+                            if firetouchinterest then
+                                firetouchinterest(rootPart, targetPart, 0)
+                                task.wait(0.05)
+                                firetouchinterest(rootPart, targetPart, 1)
+                            end
+                        end)
+                        
+                        if conn then conn:Disconnect() end
+                    end
+                end)
+            end
+        end
+    end)
+    
+    joinBtn.Activated:Connect(function()
+        pcall(function()
+            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        end)
+    end)
+    
+    obj.AncestryChanged:Connect(function()
+        if not obj.Parent then
+            itemFrame:Destroy()
+        end
+    end)
+end
+
+-- Scan starten
+for _, obj in ipairs(Workspace:GetDescendants()) do
+    registerRealEgg(obj)
+end
+
+Workspace.DescendantAdded:Connect(function(obj)
+    task.wait(0.1)
+    registerRealEgg(obj)
+end)
+
+print("CeboFinder Walk-To-Egg Scanner aktiv!")
                 -- 3. Automatisches Auslösen von ProximityPrompts (Interaktions-E-Tasten / Greifen)
                 pcall(function()
                     for _, prompt in ipairs(obj:GetDescendants()) do
