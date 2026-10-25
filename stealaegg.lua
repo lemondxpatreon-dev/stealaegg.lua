@@ -1,9 +1,9 @@
--- CeboFinder - Live Workspace Scanner & Auto-Steal für dein Spiel ("Steal a Egg")
+-- CeboFinder Mobile UI - 100% Dynamischer Live-Scanner & Auto-Steal für dein Spiel
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
-local TeleportService = game:GetService("TeleportService")
 
 -- Altes UI entfernen falls vorhanden
 if CoreGui:FindFirstChild("CeboFinderMobile") then
@@ -17,8 +17,8 @@ ScreenGui.ResetOnSpawn = false
 
 -- Hauptfenster (CeboFinder Design)
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 540, 0, 320)
-MainFrame.Position = UDim2.new(0.5, -270, 0.5, -160)
+MainFrame.Size = UDim2.new(0, 520, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
@@ -50,9 +50,53 @@ StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
+-- Verschiebbarer Kreis (erscheint beim Klick auf Hide)
+local FloatingBtn = Instance.new("TextButton")
+FloatingBtn.Size = UDim2.new(0, 50, 0, 50)
+FloatingBtn.Position = UDim2.new(0, 50, 0, 50)
+FloatingBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+FloatingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FloatingBtn.TextSize = 12
+FloatingBtn.Font = Enum.Font.GothamBold
+FloatingBtn.Text = "CF"
+FloatingBtn.Visible = false
+FloatingBtn.Parent = ScreenGui
+
+local FCorner = Instance.new("UICorner")
+FCorner.CornerRadius = UDim.new(1, 0)
+FCorner.Parent = FloatingBtn
+
+-- Dragging-Logik für den Kreis auf dem Handy
+local dragging, dragInput, dragStart, startPos
+FloatingBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = FloatingBtn.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+FloatingBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        FloatingBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
 -- Sidebar (Tabs)
 local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 110, 0, 250)
+Sidebar.Size = UDim2.new(0, 120, 0, 250)
 Sidebar.Position = UDim2.new(0, 15, 0, 55)
 Sidebar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 Sidebar.BorderSizePixel = 0
@@ -78,17 +122,23 @@ for i, tabName in ipairs(tabs) do
     btnCorner.CornerRadius = UDim.new(0, 4)
     btnCorner.Parent = btn
     
-    if tabName == "Hide" then
-        btn.Activated:Connect(function()
-            MainFrame.Visible = not MainFrame.Visible
-        end)
-    end
+    btn.Activated:Connect(function()
+        if tabName == "Hide" then
+            MainFrame.Visible = false
+            FloatingBtn.Visible = true
+        end
+    end)
 end
 
--- Feed ScrollingFrame
+FloatingBtn.Activated:Connect(function()
+    MainFrame.Visible = true
+    FloatingBtn.Visible = false
+end)
+
+-- Live Feed Scroll-Container
 local FeedScroll = Instance.new("ScrollingFrame")
-FeedScroll.Size = UDim2.new(0, 395, 0, 250)
-FeedScroll.Position = UDim2.new(0, 130, 0, 55)
+FeedScroll.Size = UDim2.new(0, 365, 0, 250)
+FeedScroll.Position = UDim2.new(0, 140, 0, 55)
 FeedScroll.BackgroundTransparency = 1
 FeedScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 FeedScroll.ScrollBarThickness = 4
@@ -103,11 +153,15 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Funktion, die ein echtes Ei/Pet aus dem Spiel im Live-Feed anzeigt
-local function addFoundEgg(eggInstance)
-    if not eggInstance or not eggInstance:IsA("BasePart") and not eggInstance:IsA("Model") then return end
+-- Funktion, die echte gespawnte Objekte aus dem Spiel dynamisch anzeigt
+local function registerSpawnedItem(obj)
+    if not obj or (not obj:IsA("BasePart") and not obj:IsA("Model")) then return end
     
+    -- Verhindern, dass Einträge doppelt erscheinen
+    if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
+
     local itemFrame = Instance.new("Frame")
+    itemFrame.Name = obj.Name .. "_" .. tostring(obj)
     itemFrame.Size = UDim2.new(1, -10, 0, 50)
     itemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
     itemFrame.BorderSizePixel = 0
@@ -121,7 +175,7 @@ local function addFoundEgg(eggInstance)
     t.Size = UDim2.new(0, 180, 0, 20)
     t.Position = UDim2.new(0, 10, 0, 8)
     t.BackgroundTransparency = 1
-    t.Text = eggInstance.Name -- Echter Name aus deinem Spiel!
+    t.Text = obj.Name -- Echter Name aus dem Spiel!
     t.TextColor3 = Color3.fromRGB(52, 152, 219)
     t.TextSize = 12
     t.Font = Enum.Font.GothamBold
@@ -132,14 +186,14 @@ local function addFoundEgg(eggInstance)
     sub.Size = UDim2.new(0, 180, 0, 15)
     sub.Position = UDim2.new(0, 10, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Spawns im Spiel • Aktiv"
+    sub.Text = "Live Spawn • Aktiv"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
     sub.TextXAlignment = Enum.TextXAlignment.Left
     sub.Parent = itemFrame
     
-    -- STEHL Button (Grün, da das Ei direkt im aktuellen Server ist)
+    -- STEHL Button (Aktiv & Grün)
     local stealBtn = Instance.new("TextButton")
     stealBtn.Size = UDim2.new(0, 50, 0, 28)
     stealBtn.Position = UDim2.new(1, -115, 0, 11)
@@ -168,34 +222,30 @@ local function addFoundEgg(eggInstance)
     local jCorner = Instance.new("UICorner")
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
-
-    -- Auto-Steal: Bewegt den Charakter automatisch zum Ei hin!
+    
+    -- Auto-Steal: Bewegt den Charakter direkt zum echten Ei im Spiel
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
             local humanoid = char.Humanoid
             local rootPart = char.HumanoidRootPart
             
-            -- Position des Eis ermitteln
             local targetPos = nil
-            if eggInstance:IsA("BasePart") then
-                targetPos = eggInstance.Position
-            elseif eggInstance:IsA("Model") then
-                if eggInstance.PrimaryPart then
-                    targetPos = eggInstance.PrimaryPart.Position
+            if obj:IsA("BasePart") then
+                targetPos = obj.Position
+            elseif obj:IsA("Model") then
+                if obj.PrimaryPart then
+                    targetPos = obj.PrimaryPart.Position
                 else
-                    local p = eggInstance:FindFirstChildWhichIsA("BasePart")
+                    local p = obj:FindFirstChildWhichIsA("BasePart")
                     if p then targetPos = p.Position end
                 end
             end
             
             if targetPos then
-                print("Auto-Steal gestartet zum Ei: " .. eggInstance.Name)
-                humanoid:MoveTo(targetPos) -- Läuft automatisch zum Ei
-                
-                -- Berührung simulieren (falls das Ei per .Touched eingesammelt wird)
+                humanoid:MoveTo(targetPos)
                 pcall(function()
-                    local p = eggInstance:IsA("BasePart") and eggInstance or eggInstance:FindFirstChildWhichIsA("BasePart")
+                    local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
                     if p and firetouchinterest then
                         firetouchinterest(rootPart, p, 0)
                         task.wait(0.1)
@@ -208,35 +258,37 @@ local function addFoundEgg(eggInstance)
     
     joinBtn.Activated:Connect(function()
         pcall(function()
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
         end)
     end)
     
-    -- Wenn das Ei eingesammelt wird oder verschwindet, fliegt es aus dem Feed raus
-    eggInstance.AncestryChanged:Connect(function()
-        if not eggInstance.Parent then
+    -- Wenn das Ei eingesammelt wird oder verschwindet, fliegt es automatisch aus dem Feed
+    obj.AncestryChanged:Connect(function()
+        if not obj.Parent then
             itemFrame:Destroy()
         end
     end)
 end
 
--- 1. Bereits vorhandene Eier im Workspace beim Start scannen
+-- 1. Bereits im Workspace vorhandene Eier/Pets scannen
 for _, obj in ipairs(Workspace:GetDescendants()) do
-    if obj.Name:lower():find("egg") or obj.Name:lower():find("pet") or obj.Name:lower():find("divine") or obj.Name:lower():find("eternal") then
-        if (obj:IsA("BasePart") or obj:IsA("Model")) and obj.Parent == Workspace then
-            addFoundEgg(obj)
+    local n = obj.Name:lower()
+    if n:find("egg") or n:find("pet") or n:find("secret") or n:find("divine") or n:find("eternal") or n:find("starry") or n:find("fox") then
+        if obj:IsA("BasePart") or obj:IsA("Model") then
+            registerSpawnedItem(obj)
         end
     end
 end
 
--- 2. Live überwachen: Wenn neue Eier im Spiel spawnen, direkt im Feed anzeigen
+-- 2. Live-Überwachung: Sobald ein echtes Ei spawnt, wird es sofort angezeigt
 Workspace.DescendantAdded:Connect(function(obj)
-    if obj.Name:lower():find("egg") or obj.Name:lower():find("pet") or obj.Name:lower():find("divine") or obj.Name:lower():find("eternal") then
+    local n = obj.Name:lower()
+    if n:find("egg") or n:find("pet") or n:find("secret") or n:find("divine") or n:find("eternal") or n:find("starry") or n:find("fox") then
         if obj:IsA("BasePart") or obj:IsA("Model") then
-            task.wait(0.2)
-            addFoundEgg(obj)
+            task.wait(0.1)
+            registerSpawnedItem(obj)
         end
     end
 end)
 
-print("CeboFinder Live Scanner aktiv!")
+print("CeboFinder Live Scanner & Auto-Steal erfolgreich gestartet!")
