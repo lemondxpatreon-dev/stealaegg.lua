@@ -1,4 +1,4 @@
--- CeboFinder Mobile UI - Nur Pets Live-Scanner & Auto-Steal
+-- CeboFinder Mobile UI - Nur Echte Eier & Pets Scanner
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -43,7 +43,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 100, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Scanning Pets"
+StatusLabel.Text = "■ Scanning Eggs/Pets"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -153,15 +153,28 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Funktion, die prüft, ob ein Objekt ein Pet ist und es im Feed anzeigt
-local function registerPet(obj)
+-- Strikter Filter: Nur echte Eier und Pets anzeigen (keine Zonen, Skripte oder Ordner)
+local function isValidEggOrPet(obj)
+    local name = obj.Name:lower()
+    
+    -- Ignoriere typische System- oder Zonen-Namen
+    if name:find("zone") or name:find("spawn") or name:find("hint") or name:find("room") or name:find("folder") or name:find("part") then
+        return false
+    end
+    
+    -- Erlaube nur echte Eier, Pets oder bekannte Rausch-Tiere (wie Starry Fox)
+    if name:find("egg") or name:find("pet") or name:find("secret") or name:find("divine") or name:find("eternal") or name:find("starry") or name:find("fox") then
+        return true
+    end
+    
+    return false
+end
+
+-- Funktion, die echte Eier/Pets im Feed anzeigt
+local function registerEggOrPet(obj)
     if not obj or (not obj:IsA("BasePart") and not obj:IsA("Model")) then return end
+    if not isValidEggOrPet(obj) then return end
     
-    -- Filter: Es soll sich NUR um Pets / Secret Items handeln (z.B. Starry Fox, Pets, Secrets)
-    local nameLower = obj.Name:lower()
-    local isPet = nameLower:find("pet") or nameLower:find("secret") or nameLower:find("divine") or nameLower:find("eternal") or nameLower:find("starry") or nameLower:find("fox")
-    
-    if not isPet then return end
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
     local itemFrame = Instance.new("Frame")
@@ -179,7 +192,7 @@ local function registerPet(obj)
     t.Size = UDim2.new(0, 180, 0, 20)
     t.Position = UDim2.new(0, 10, 0, 8)
     t.BackgroundTransparency = 1
-    t.Text = obj.Name -- Zeigt exakt den Namen des Pets im Spiel!
+    t.Text = obj.Name -- Echter Name des Eis/Pets
     t.TextColor3 = Color3.fromRGB(52, 152, 219)
     t.TextSize = 12
     t.Font = Enum.Font.GothamBold
@@ -190,7 +203,7 @@ local function registerPet(obj)
     sub.Size = UDim2.new(0, 180, 0, 15)
     sub.Position = UDim2.new(0, 10, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Secret Pet • Aktiv"
+    sub.Text = "Live Drop • Aktiv"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
@@ -227,7 +240,7 @@ local function registerPet(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- Auto-Steal: Bewegt den Charakter direkt zum Pet im Spiel
+    -- Auto-Steal: Bewegt den Charakter direkt zum echten Ei/Pet
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
@@ -266,7 +279,7 @@ local function registerPet(obj)
         end)
     end)
     
-    -- Entfernt das Pet aus dem Feed, wenn es eingesammelt wird oder despawnt
+    -- Entfernt den Eintrag aus dem Feed, wenn das Ei/Pet eingesammelt wurde
     obj.AncestryChanged:Connect(function()
         if not obj.Parent then
             itemFrame:Destroy()
@@ -274,15 +287,15 @@ local function registerPet(obj)
     end)
 end
 
--- 1. Bereits vorhandene Pets scannen
+-- 1. Bereits vorhandene Eier/Pets im Spiel scannen
 for _, obj in ipairs(Workspace:GetDescendants()) do
-    registerPet(obj)
+    registerEggOrPet(obj)
 end
 
--- 2. Live-Überwachung für neu spawnende Pets
+-- 2. Live-Überwachung für neu spawnende Eier/Pets
 Workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
-    registerPet(obj)
+    registerEggOrPet(obj)
 end)
 
-print("CeboFinder Pet Scanner & Auto-Steal erfolgreich gestartet!")
+print("CeboFinder Egg & Pet Scanner erfolgreich gestartet!")
