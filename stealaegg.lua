@@ -1,21 +1,30 @@
--- CeboFinder - Finaler Fix für Mobile (PlayerGui & Garantierte Anzeige)
+-- CeboFinder - Mobile Executor Crash-Fix & Free Eggs Only
+local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Altes UI entfernen falls vorhanden
-if PlayerGui:FindFirstChild("CeboFinderMobile") then
-    PlayerGui.CeboFinderMobile:Destroy()
-end
+-- Sicherstellen, dass das alte UI komplett gelöscht wird
+pcall(function()
+    if CoreGui:FindFirstChild("CeboFinderMobile") then
+        CoreGui.CeboFinderMobile:Destroy()
+    end
+    if LocalPlayer.PlayerGui:FindFirstChild("CeboFinderMobile") then
+        LocalPlayer.PlayerGui.CeboFinderMobile:Destroy()
+    end
+end)
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CeboFinderMobile"
-ScreenGui.Parent = PlayerGui
+-- Versucht es in CoreGui zu laden, wenn das fehlschlägt, in PlayerGui
+local success = pcall(function()
+    ScreenGui.Parent = CoreGui
+end)
+if not success then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 99999
 
 -- Hauptfenster
 local MainFrame = Instance.new("Frame")
@@ -43,10 +52,10 @@ TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = MainFrame
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0, 150, 0, 20)
+StatusLabel.Size = UDim2.new(0, 180, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Active & Scanning"
+StatusLabel.Text = "■ Free World Eggs Only"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -89,7 +98,7 @@ FloatingBtn.InputChanged:Connect(function(input)
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
         FloatingBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
@@ -155,20 +164,34 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Filter für echte Eier (wie Halloween-Ei etc.)
-local function isRealEgg(obj)
+-- Filter: Nur freie Eier in der Welt (ignoriert Spieler-Inventare, Rucksäcke und fremden Besitz)
+local function isFreeWorldEgg(obj)
     local name = obj.Name:lower()
+    
+    -- Prüfen, ob das Objekt sich im Rucksack oder Charakter eines Spielers befindet (gehört jemand anderem)
+    local ancestor = obj.Parent
+    while ancestor do
+        if ancestor:IsA("Player") or ancestor:IsA("Backpack") or ancestor.Name == "Backpack" then
+            return false
+        end
+        ancestor = ancestor.Parent
+    end
+    
+    -- Müll ausschließen
     if name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("zone") or name:find("spawn") or name:find("room") or name:find("monkey") or name:find("gorilla") then
         return false
     end
+    
+    -- Nur echte freie Eier
     if (name:find("egg") or name:find("ei")) and (obj:IsA("Model") or obj:IsA("BasePart")) then
         return true
     end
+    
     return false
 end
 
-local function registerRealEgg(obj)
-    if not isRealEgg(obj) then return end
+local function registerFreeEgg(obj)
+    if not isFreeWorldEgg(obj) then return end
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
     local itemFrame = Instance.new("Frame")
@@ -197,7 +220,7 @@ local function registerRealEgg(obj)
     sub.Size = UDim2.new(0, 180, 0, 15)
     sub.Position = UDim2.new(0, 10, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Live Egg • Bereit"
+    sub.Text = "Freies Ei • Bereit"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
@@ -234,7 +257,7 @@ local function registerRealEgg(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- GEHEN UND GREIFEN
+    -- HINGEHEN UND GREIFEN
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
@@ -296,12 +319,12 @@ end
 
 -- Scan starten
 for _, obj in ipairs(Workspace:GetDescendants()) do
-    pcall(function() registerRealEgg(obj) end)
+    pcall(function() registerFreeEgg(obj) end)
 end
 
 Workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
-    pcall(function() registerRealEgg(obj) end)
+    pcall(function() registerFreeEgg(obj) end)
 end)
 
 print("CeboFinder erfolgreich geladen!")
