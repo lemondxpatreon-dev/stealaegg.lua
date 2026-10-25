@@ -1,4 +1,4 @@
--- CeboFinder Mobile UI - Nur Echte Eier & Pets Scanner
+-- CeboFinder Mobile UI - Nur Echte Tiere & Eier mit Instant-Grab
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -43,7 +43,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 100, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Scanning Eggs/Pets"
+StatusLabel.Text = "■ Live Animals & Eggs"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -153,27 +153,27 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Strikter Filter: Nur echte Eier und Pets anzeigen (keine Zonen, Skripte oder Ordner)
-local function isValidEggOrPet(obj)
+-- ULTRA-STRIKTER FILTER: Ignoriert Pads, Skripte, Spawns und zeigt NUR echte Tiere/Eier
+local function isActualAnimalOrEgg(obj)
     local name = obj.Name:lower()
     
-    -- Ignoriere typische System- oder Zonen-Namen
-    if name:find("zone") or name:find("spawn") or name:find("hint") or name:find("room") or name:find("folder") or name:find("part") then
+    -- Alles, was nach Code, Pad oder Zone aussieht, sofort ausschließen
+    if name:find("pad") or name:find("host") or name:find("zone") or name:find("spawn") or name:find("hint") or name:find("room") or name:find("folder") or name:find("part") then
         return false
     end
     
-    -- Erlaube nur echte Eier, Pets oder bekannte Rausch-Tiere (wie Starry Fox)
-    if name:find("egg") or name:find("pet") or name:find("secret") or name:find("divine") or name:find("eternal") or name:find("starry") or name:find("fox") then
+    -- Erlaube nur echte Tiere und Eier (wie Fox, Pet, Egg, Secret, Divine, Eternal)
+    if name:find("egg") or name:find("pet") or name:find("secret") or name:find("divine") or name:find("eternal") or name:find("starry") or name:find("fox") or name:find("animal") then
         return true
     end
     
     return false
 end
 
--- Funktion, die echte Eier/Pets im Feed anzeigt
-local function registerEggOrPet(obj)
+-- Funktion, die echte Eier/Tiere im Feed anzeigt
+local function registerAnimalOrEgg(obj)
     if not obj or (not obj:IsA("BasePart") and not obj:IsA("Model")) then return end
-    if not isValidEggOrPet(obj) then return end
+    if not isActualAnimalOrEgg(obj) then return end
     
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
@@ -192,7 +192,7 @@ local function registerEggOrPet(obj)
     t.Size = UDim2.new(0, 180, 0, 20)
     t.Position = UDim2.new(0, 10, 0, 8)
     t.BackgroundTransparency = 1
-    t.Text = obj.Name -- Echter Name des Eis/Pets
+    t.Text = obj.Name -- Echter Name des Tiers/Eis
     t.TextColor3 = Color3.fromRGB(52, 152, 219)
     t.TextSize = 12
     t.Font = Enum.Font.GothamBold
@@ -240,33 +240,27 @@ local function registerEggOrPet(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- Auto-Steal: Bewegt den Charakter direkt zum echten Ei/Pet
+    -- INSTANT-GRAB & AUTO-STEAL: Teleportiert direkt zum Ei/Tier und sammelt es ein
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
-            local humanoid = char.Humanoid
+        if char and char:FindFirstChild("HumanoidRootPart") then
             local rootPart = char.HumanoidRootPart
             
-            local targetPos = nil
+            local targetPart = nil
             if obj:IsA("BasePart") then
-                targetPos = obj.Position
+                targetPart = obj
             elseif obj:IsA("Model") then
-                if obj.PrimaryPart then
-                    targetPos = obj.PrimaryPart.Position
-                else
-                    local p = obj:FindFirstChildWhichIsA("BasePart")
-                    if p then targetPos = p.Position end
-                end
+                targetPart = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
             end
             
-            if targetPos then
-                humanoid:MoveTo(targetPos)
+            if targetPart then
+                -- Direkt zum Ei/Tier teleportieren und einsammeln (Grab)
+                rootPart.CFrame = targetPart.CFrame + Vector3.new(0, 2, 0)
                 pcall(function()
-                    local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
-                    if p and firetouchinterest then
-                        firetouchinterest(rootPart, p, 0)
-                        task.wait(0.1)
-                        firetouchinterest(rootPart, p, 1)
+                    if firetouchinterest then
+                        firetouchinterest(rootPart, targetPart, 0)
+                        task.wait(0.05)
+                        firetouchinterest(rootPart, targetPart, 1)
                     end
                 end)
             end
@@ -279,7 +273,7 @@ local function registerEggOrPet(obj)
         end)
     end)
     
-    -- Entfernt den Eintrag aus dem Feed, wenn das Ei/Pet eingesammelt wurde
+    -- Entfernt das Tier/Ei aus dem Feed, wenn es eingesammelt wurde
     obj.AncestryChanged:Connect(function()
         if not obj.Parent then
             itemFrame:Destroy()
@@ -287,15 +281,15 @@ local function registerEggOrPet(obj)
     end)
 end
 
--- 1. Bereits vorhandene Eier/Pets im Spiel scannen
+-- 1. Vorhandene Eier/Tiere scannen
 for _, obj in ipairs(Workspace:GetDescendants()) do
-    registerEggOrPet(obj)
+    registerAnimalOrEgg(obj)
 end
 
--- 2. Live-Überwachung für neu spawnende Eier/Pets
+-- 2. Live-Überwachung für neu spawnende Eier/Tiere
 Workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
-    registerEggOrPet(obj)
+    registerAnimalOrEgg(obj)
 end)
 
-print("CeboFinder Egg & Pet Scanner erfolgreich gestartet!")
+print("CeboFinder Instant-Grab Scanner erfolgreich gestartet!")
