@@ -1,4 +1,4 @@
--- CeboFinder Mobile UI - 100% Dynamischer Live-Scanner & Auto-Steal für dein Spiel
+-- CeboFinder Mobile UI - Nur Pets Live-Scanner & Auto-Steal
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -43,7 +43,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 100, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Live Scanning"
+StatusLabel.Text = "■ Scanning Pets"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -153,11 +153,15 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Funktion, die echte gespawnte Objekte aus dem Spiel dynamisch anzeigt
-local function registerSpawnedItem(obj)
+-- Funktion, die prüft, ob ein Objekt ein Pet ist und es im Feed anzeigt
+local function registerPet(obj)
     if not obj or (not obj:IsA("BasePart") and not obj:IsA("Model")) then return end
     
-    -- Verhindern, dass Einträge doppelt erscheinen
+    -- Filter: Es soll sich NUR um Pets / Secret Items handeln (z.B. Starry Fox, Pets, Secrets)
+    local nameLower = obj.Name:lower()
+    local isPet = nameLower:find("pet") or nameLower:find("secret") or nameLower:find("divine") or nameLower:find("eternal") or nameLower:find("starry") or nameLower:find("fox")
+    
+    if not isPet then return end
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
     local itemFrame = Instance.new("Frame")
@@ -175,7 +179,7 @@ local function registerSpawnedItem(obj)
     t.Size = UDim2.new(0, 180, 0, 20)
     t.Position = UDim2.new(0, 10, 0, 8)
     t.BackgroundTransparency = 1
-    t.Text = obj.Name -- Echter Name aus dem Spiel!
+    t.Text = obj.Name -- Zeigt exakt den Namen des Pets im Spiel!
     t.TextColor3 = Color3.fromRGB(52, 152, 219)
     t.TextSize = 12
     t.Font = Enum.Font.GothamBold
@@ -186,7 +190,7 @@ local function registerSpawnedItem(obj)
     sub.Size = UDim2.new(0, 180, 0, 15)
     sub.Position = UDim2.new(0, 10, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Live Spawn • Aktiv"
+    sub.Text = "Secret Pet • Aktiv"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
@@ -223,7 +227,7 @@ local function registerSpawnedItem(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- Auto-Steal: Bewegt den Charakter direkt zum echten Ei im Spiel
+    -- Auto-Steal: Bewegt den Charakter direkt zum Pet im Spiel
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
@@ -262,7 +266,7 @@ local function registerSpawnedItem(obj)
         end)
     end)
     
-    -- Wenn das Ei eingesammelt wird oder verschwindet, fliegt es automatisch aus dem Feed
+    -- Entfernt das Pet aus dem Feed, wenn es eingesammelt wird oder despawnt
     obj.AncestryChanged:Connect(function()
         if not obj.Parent then
             itemFrame:Destroy()
@@ -270,25 +274,15 @@ local function registerSpawnedItem(obj)
     end)
 end
 
--- 1. Bereits im Workspace vorhandene Eier/Pets scannen
+-- 1. Bereits vorhandene Pets scannen
 for _, obj in ipairs(Workspace:GetDescendants()) do
-    local n = obj.Name:lower()
-    if n:find("egg") or n:find("pet") or n:find("secret") or n:find("divine") or n:find("eternal") or n:find("starry") or n:find("fox") then
-        if obj:IsA("BasePart") or obj:IsA("Model") then
-            registerSpawnedItem(obj)
-        end
-    end
+    registerPet(obj)
 end
 
--- 2. Live-Überwachung: Sobald ein echtes Ei spawnt, wird es sofort angezeigt
+-- 2. Live-Überwachung für neu spawnende Pets
 Workspace.DescendantAdded:Connect(function(obj)
-    local n = obj.Name:lower()
-    if n:find("egg") or n:find("pet") or n:find("secret") or n:find("divine") or n:find("eternal") or n:find("starry") or n:find("fox") then
-        if obj:IsA("BasePart") or obj:IsA("Model") then
-            task.wait(0.1)
-            registerSpawnedItem(obj)
-        end
-    end
+    task.wait(0.1)
+    registerPet(obj)
 end)
 
-print("CeboFinder Live Scanner & Auto-Steal erfolgreich gestartet!")
+print("CeboFinder Pet Scanner & Auto-Steal erfolgreich gestartet!")
