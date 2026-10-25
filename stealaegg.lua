@@ -1,4 +1,4 @@
--- CeboFinder - Finaler Mobile Fix & Base-Return
+-- CeboFinder - Perfekter Filter (Nur echte Eier, Hingehen & Base-Return)
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -46,7 +46,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 180, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Free Eggs & Base Return"
+StatusLabel.Text = "■ Real Collectible Eggs"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -148,7 +148,7 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Super strikter Filter: Keine Meshes, keine fremden Eier, nur echte Welt-Eier
+-- ULTRA-STRIKTER FILTER: Blockiert alle Holder, Spawner, IDs, Meshes und Map-Teile aus dem Video
 local function isValidEgg(obj)
     if not obj or not obj.Parent then return false end
     local name = obj.Name:lower()
@@ -162,12 +162,17 @@ local function isValidEgg(obj)
         ancestor = ancestor.Parent
     end
     
-    -- Müll und Mesh-Builder Bauteile blockieren
-    if name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("zone") or name:find("spawn") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") then
+    -- Blockiere sämtliche Spawner, Holder, Bauteile, IDs und Map-Objekte aus dem Video[span_3](start_span)[span_3](end_span)
+    if name:find("holder") or name:find("spawn") or name:find("zone") or name:find("area") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") or name:find("ceiling") or name:find("pipe") or name:find("light") or name:find("whirlpool") or name:find("rock") or name:find("internal") or name:find("section") or name:find("panel") then
         return false
     end
     
-    -- Muss ein echtes Ei sein
+    -- Blockiere Namen mit langen Nummern-IDs wie "448734258" (Spawner/Holder Blöcke)[span_4](start_span)[span_4](end_span)
+    if name:match("%d+_%d+") then
+        return false
+    end
+    
+    -- Muss explizit "egg" oder "ei" enthalten und ein Model oder BasePart sein
     if (name:find("egg") or name:find("ei")) and (obj:IsA("Model") or obj:IsA("BasePart")) then
         return true
     end
@@ -175,7 +180,7 @@ local function isValidEgg(obj)
     return false
 end
 
--- Funktion zum Ermitteln der eigenen Base-Position
+-- Funktion zur Ermittlung der eigenen Base-Position
 local function getPlayerBasePosition()
     for _, obj in ipairs(Workspace:GetDescendants()) do
         local name = obj.Name:lower()
@@ -222,7 +227,7 @@ local function registerEggItem(obj)
     sub.Size = UDim2.new(0, 180, 0, 15)
     sub.Position = UDim2.new(0, 10, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Freies Ei • Bereit"
+    sub.Text = "Echtes Ei • Bereit"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
@@ -259,7 +264,7 @@ local function registerEggItem(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- HINGEHEN, GREIFEN UND ZUR BASE BRINGEN
+    -- HINGEHEN, EINSAMMELN UND ZUR BASE ZURÜCKBRINGEN
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
@@ -286,7 +291,7 @@ local function registerEggItem(obj)
                     
                     local distance = (rootPart.Position - targetPart.Position).Magnitude
                     if distance <= 7 then
-                        -- 2. Ei einsammeln
+                        -- 2. Ei greifen / einsammeln
                         pcall(function()
                             for _, prompt in ipairs(obj:GetDescendants()) do
                                 if prompt:IsA("ProximityPrompt") then
