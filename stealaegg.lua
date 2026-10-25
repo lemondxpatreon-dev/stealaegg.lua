@@ -1,4 +1,4 @@
--- CeboFinder Mobile UI - Clean Names & Instant Grab Fix
+-- CeboFinder - Nur Eier Filter & Sicherer Instant-Grab (Kein Sterben mehr)
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -43,7 +43,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 100, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Live Clean Scanner"
+StatusLabel.Text = "■ Only Eggs Scanner"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -153,35 +153,29 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Funktion zur Bereinigung von technischen Modell-Namen
-local function getCleanDisplayName(objName)
-    local clean = objName
-    clean = clean:gsub("Models for ", "")
-    clean = clean:gsub("model", "")
-    clean = clean:gsub("%.%d+", "") -- Entfernt .003, .038 etc.
-    if clean == "" or clean:match("^%s*$") then
-        clean = "Secret Egg"
+-- ULTRA-STRIKTER FILTER: Nur echte Eier! Alles andere (Pads, Modelle, Zonen) wird komplett blockiert.
+local function isRealEgg(obj)
+    local name = obj.Name:lower()
+    
+    -- Ausschluss von allem, was kein Ei ist
+    if name:find("pad") or name:find("host") or name:find("zone") or name:find("spawn") or name:find("hint") or name:find("room") or name:find("folder") or name:find("models for") then
+        return false
     end
-    return clean
+    
+    -- Das Objekt MUSS das Wort "egg" im Namen haben!
+    if name:find("egg") then
+        return true
+    end
+    
+    return false
 end
 
-local function registerCleanItem(obj)
+-- Funktion zum Eintragen der Eier in den Live-Feed
+local function registerEgg(obj)
     if not obj or (not obj:IsA("BasePart") and not obj:IsA("Model")) then return end
+    if not isRealEgg(obj) then return end
     
-    local nameLower = obj.Name:lower()
-    -- Ignoriere Code-Pads und Zonen
-    if nameLower:find("pad") or nameLower:find("host") or nameLower:find("zone") or nameLower:find("spawn") or nameLower:find("hint") or nameLower:find("room") then
-        return
-    end
-    
-    -- Erlaube nur echte Eier/Pets/Drops
-    if not (nameLower:find("egg") or nameLower:find("pet") or nameLower:find("secret") or nameLower:find("divine") or nameLower:find("eternal") or nameLower:find("starry") or nameLower:find("fox")) then
-        return
-    end
-
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
-
-    local displayName = getCleanDisplayName(obj.Name)
 
     local itemFrame = Instance.new("Frame")
     itemFrame.Name = obj.Name .. "_" .. tostring(obj)
@@ -198,8 +192,8 @@ local function registerCleanItem(obj)
     t.Size = UDim2.new(0, 180, 0, 20)
     t.Position = UDim2.new(0, 10, 0, 8)
     t.BackgroundTransparency = 1
-    t.Text = displayName -- Sauberer Name ohne "Models for..."
-    t.TextColor3 = Color3.fromRGB(52, 152, 219)
+    t.Text = obj.Name -- Zeigt exakt den Namen des Eis
+    t.TextColor3 = Color3.fromRGB(241, 196, 15) -- Gold/Gelb für Eier
     t.TextSize = 12
     t.Font = Enum.Font.GothamBold
     t.TextXAlignment = Enum.TextXAlignment.Left
@@ -209,7 +203,7 @@ local function registerCleanItem(obj)
     sub.Size = UDim2.new(0, 180, 0, 15)
     sub.Position = UDim2.new(0, 10, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Live Drop • Aktiv"
+    sub.Text = "Live Egg • Aktiv"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
@@ -246,7 +240,7 @@ local function registerCleanItem(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- INSTANT-GRAB / STEHLEN: Teleportiert zum Ei/Tier und sammelt es sofort ein
+    -- SICHERER INSTANT-GRAB (Kein Tod durch Fallschaden/Glitch):
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
@@ -260,7 +254,14 @@ local function registerCleanItem(obj)
             end
             
             if targetPart then
-                rootPart.CFrame = targetPart.CFrame + Vector3.new(0, 2, 0)
+                -- 1. Jegliche Geschwindigkeit und Schwung stoppen, damit man beim Teleport nicht stirbt!
+                rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                
+                -- 2. Sicher ein kleines Stück ÜBER dem Ei platzieren (verhindert das Feststecken im Boden)
+                rootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+                
+                -- 3. Touch-Interaktion auslösen, um das Ei sofort zu grabben/einzusammeln
                 pcall(function()
                     if firetouchinterest then
                         firetouchinterest(rootPart, targetPart, 0)
@@ -278,6 +279,7 @@ local function registerCleanItem(obj)
         end)
     end)
     
+    -- Entfernt das Ei aus dem Feed, wenn es eingesammelt wurde
     obj.AncestryChanged:Connect(function()
         if not obj.Parent then
             itemFrame:Destroy()
@@ -285,15 +287,15 @@ local function registerCleanItem(obj)
     end)
 end
 
--- 1. Vorhandene Eier/Tiere scannen
+-- 1. Vorhandene Eier scannen
 for _, obj in ipairs(Workspace:GetDescendants()) do
-    registerCleanItem(obj)
+    registerEgg(obj)
 end
 
--- 2. Live-Überwachung für neue Spawns
+-- 2. Live-Überwachung für neu spawnende Eier
 Workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
-    registerCleanItem(obj)
+    registerEgg(obj)
 end)
 
-print("CeboFinder Clean Scanner & Grabber gestartet!")
+print("CeboFinder Egg-Only Scanner & Safe Grab gestartet!")
