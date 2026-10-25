@@ -1,9 +1,9 @@
--- CeboFinder Mobile UI - Dynamischer Live-Feed für Spawns
+-- CeboFinder - Live Workspace Scanner & Auto-Steal für dein Spiel ("Steal a Egg")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
+local TeleportService = game:GetService("TeleportService")
 
 -- Altes UI entfernen falls vorhanden
 if CoreGui:FindFirstChild("CeboFinderMobile") then
@@ -15,7 +15,7 @@ ScreenGui.Name = "CeboFinderMobile"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
--- Hauptfenster
+-- Hauptfenster (CeboFinder Design)
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 540, 0, 320)
 MainFrame.Position = UDim2.new(0.5, -270, 0.5, -160)
@@ -43,7 +43,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 100, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Connected"
+StatusLabel.Text = "■ Live Scanning"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -85,7 +85,7 @@ for i, tabName in ipairs(tabs) do
     end
 end
 
--- Live Feed Scroll-Container
+-- Feed ScrollingFrame
 local FeedScroll = Instance.new("ScrollingFrame")
 FeedScroll.Size = UDim2.new(0, 395, 0, 250)
 FeedScroll.Position = UDim2.new(0, 130, 0, 55)
@@ -99,13 +99,14 @@ UIListLayout.Parent = FeedScroll
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 6)
 
--- Automatische Anpassung der Scroll-Größe bei neuen Einträgen
 UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Funktion, die dynamisch ein Tier/Ei in den Feed einträgt
-local function addFeedItem(petName, valueText, subText, targetJobId)
+-- Funktion, die ein echtes Ei/Pet aus dem Spiel im Live-Feed anzeigt
+local function addFoundEgg(eggInstance)
+    if not eggInstance or not eggInstance:IsA("BasePart") and not eggInstance:IsA("Model") then return end
+    
     local itemFrame = Instance.new("Frame")
     itemFrame.Size = UDim2.new(1, -10, 0, 50)
     itemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -120,7 +121,7 @@ local function addFeedItem(petName, valueText, subText, targetJobId)
     t.Size = UDim2.new(0, 180, 0, 20)
     t.Position = UDim2.new(0, 10, 0, 8)
     t.BackgroundTransparency = 1
-    t.Text = petName .. " [ " .. valueText .. " ]"
+    t.Text = eggInstance.Name -- Echter Name aus deinem Spiel!
     t.TextColor3 = Color3.fromRGB(52, 152, 219)
     t.TextSize = 12
     t.Font = Enum.Font.GothamBold
@@ -131,19 +132,19 @@ local function addFeedItem(petName, valueText, subText, targetJobId)
     sub.Size = UDim2.new(0, 180, 0, 15)
     sub.Position = UDim2.new(0, 10, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = subText
+    sub.Text = "Spawns im Spiel • Aktiv"
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
     sub.TextXAlignment = Enum.TextXAlignment.Left
     sub.Parent = itemFrame
     
-    -- STEHL Button (Standardmäßig Grau / Deaktiviert)
+    -- STEHL Button (Grün, da das Ei direkt im aktuellen Server ist)
     local stealBtn = Instance.new("TextButton")
     stealBtn.Size = UDim2.new(0, 50, 0, 28)
     stealBtn.Position = UDim2.new(1, -115, 0, 11)
-    stealBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    stealBtn.TextColor3 = Color3.fromRGB(160, 160, 160)
+    stealBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    stealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     stealBtn.TextSize = 11
     stealBtn.Font = Enum.Font.GothamBold
     stealBtn.Text = "STEHL"
@@ -167,45 +168,75 @@ local function addFeedItem(petName, valueText, subText, targetJobId)
     local jCorner = Instance.new("UICorner")
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
-    
-    -- Prüfen, ob man sich aktuell auf exakt diesem Server befindet
-    if game.JobId == targetJobId then
-        stealBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113) -- Wird Grün, wenn man im Server ist
-        stealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    end
 
-    -- Server-Wechsel beim Klick auf JOIN
+    -- Auto-Steal: Bewegt den Charakter automatisch zum Ei hin!
+    stealBtn.Activated:Connect(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
+            local humanoid = char.Humanoid
+            local rootPart = char.HumanoidRootPart
+            
+            -- Position des Eis ermitteln
+            local targetPos = nil
+            if eggInstance:IsA("BasePart") then
+                targetPos = eggInstance.Position
+            elseif eggInstance:IsA("Model") then
+                if eggInstance.PrimaryPart then
+                    targetPos = eggInstance.PrimaryPart.Position
+                else
+                    local p = eggInstance:FindFirstChildWhichIsA("BasePart")
+                    if p then targetPos = p.Position end
+                end
+            end
+            
+            if targetPos then
+                print("Auto-Steal gestartet zum Ei: " .. eggInstance.Name)
+                humanoid:MoveTo(targetPos) -- Läuft automatisch zum Ei
+                
+                -- Berührung simulieren (falls das Ei per .Touched eingesammelt wird)
+                pcall(function()
+                    local p = eggInstance:IsA("BasePart") and eggInstance or eggInstance:FindFirstChildWhichIsA("BasePart")
+                    if p and firetouchinterest then
+                        firetouchinterest(rootPart, p, 0)
+                        task.wait(0.1)
+                        firetouchinterest(rootPart, p, 1)
+                    end
+                end)
+            end
+        end
+    end)
+    
     joinBtn.Activated:Connect(function()
         pcall(function()
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetJobId, LocalPlayer)
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
         end)
     end)
     
-    -- Aktion beim Klick auf STEHL
-    stealBtn.Activated:Connect(function()
-        if game.JobId == targetJobId then
-            print("Aktion ausgeführt: Stehlen für " .. petName)
-            -- Hier greift die Mechanik, sobald man im richtigen Server ist
-        else
-            print("Du musst erst in diesen Server joinen!")
+    -- Wenn das Ei eingesammelt wird oder verschwindet, fliegt es aus dem Feed raus
+    eggInstance.AncestryChanged:Connect(function()
+        if not eggInstance.Parent then
+            itemFrame:Destroy()
         end
     end)
 end
 
--- Beispiel: Lauschen auf echte Remote-Ereignisse aus dem Spiel, die Spawns melden
-local success, remoteEvent = pcall(function()
-    return ReplicatedStorage:WaitForChild("RareSpawnEvent", 2)
-end)
-
-if success and remoteEvent then
-    remoteEvent.OnClientEvent:Connect(function(data)
-    -- Hier werden die Spawns vollautomatisch eingefügt, wenn sie vom Spiel empfangen werden
-        addFeedItem(data.PetName, data.Value, data.SubText, data.JobId)
-    end)
-else
-    -- Fall zur Ansicht, falls kein Event verbunden ist (Testmodus)
-    addFeedItem("Starry Fox", "$18.4B/s", "7/4 • 0:11 • Secret", game.JobId) -- Ist grün, da aktueller Server
-    addFeedItem("Starry Fox", "$6.1B/s", "7/7 • 0:12 • Secret", "fremde-server-id-xyz") -- Bleibt grau bis zum Join
+-- 1. Bereits vorhandene Eier im Workspace beim Start scannen
+for _, obj in ipairs(Workspace:GetDescendants()) do
+    if obj.Name:lower():find("egg") or obj.Name:lower():find("pet") or obj.Name:lower():find("divine") or obj.Name:lower():find("eternal") then
+        if (obj:IsA("BasePart") or obj:IsA("Model")) and obj.Parent == Workspace then
+            addFoundEgg(obj)
+        end
+    end
 end
 
-print("CeboFinder Dynamischer Feed geladen!")
+-- 2. Live überwachen: Wenn neue Eier im Spiel spawnen, direkt im Feed anzeigen
+Workspace.DescendantAdded:Connect(function(obj)
+    if obj.Name:lower():find("egg") or obj.Name:lower():find("pet") or obj.Name:lower():find("divine") or obj.Name:lower():find("eternal") then
+        if obj:IsA("BasePart") or obj:IsA("Model") then
+            task.wait(0.2)
+            addFoundEgg(obj)
+        end
+    end
+end)
+
+print("CeboFinder Live Scanner aktiv!")
