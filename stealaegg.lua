@@ -1,10 +1,7 @@
--- Roblox Mobile UI: CeboFinder für Steal a Egg
--- Voll funktionsfähige Version mit echtem Server-Hop und Anti-Hit
-
+-- CeboFinder Mobile UI (Test-Version für Divine & Eternal Spawns)
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
@@ -18,9 +15,8 @@ ScreenGui.Name = "CeboFinderMobile"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
--- Hauptfenster
+-- Hauptfenster (Dark Theme im CeboFinder-Stil)
 local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 520, 0, 320)
 MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
@@ -54,7 +50,7 @@ StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
--- Sidebar (Menü-Buttons)
+-- Sidebar (Tabs)
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 120, 0, 250)
 Sidebar.Position = UDim2.new(0, 15, 0, 55)
@@ -83,95 +79,32 @@ for i, tabName in ipairs(tabs) do
     btnCorner.Parent = btn
     
     if tabName == "Hide" then
-        btn.MouseButton1Click:Connect(function()
+        btn.Activated:Connect(function()
             MainFrame.Visible = not MainFrame.Visible
         end)
     end
 end
-
--- Top Toggles (Auto-Join & Auto-Force)
-local autoJoinEnabled = false
-local function createToggle(name, posX, callback)
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0, 80, 0, 25)
-    label.Position = UDim2.new(0, posX, 0, 12)
-    label.BackgroundTransparency = 1
-    label.Text = name
-    label.TextColor3 = Color3.fromRGB(200, 200, 200)
-    label.TextSize = 12
-    label.Font = Enum.Font.GothamMedium
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = MainFrame
-    
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(0, 40, 0, 20)
-    toggleBtn.Position = UDim2.new(0, posX + 75, 0, 15)
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    toggleBtn.Text = ""
-    toggleBtn.Parent = MainFrame
-    
-    local tCorner = Instance.new("UICorner")
-    tCorner.CornerRadius = UDim.new(1, 0)
-    tCorner.Parent = toggleBtn
-    
-    local circle = Instance.new("Frame")
-    circle.Size = UDim2.new(0, 16, 0, 16)
-    circle.Position = UDim2.new(0, 2, 0, 2)
-    circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    circle.Parent = toggleBtn
-    
-    local cCorner = Instance.new("UICorner")
-    cCorner.CornerRadius = UDim.new(1, 0)
-    cCorner.Parent = circle
-    
-    local active = false
-    toggleBtn.MouseButton1Click:Connect(function()
-        active = not active
-        if active then
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-            circle.Position = UDim2.new(0, 22, 0, 2)
-        else
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-            circle.Position = UDim2.new(0, 2, 0, 2)
-        end
-        if callback then callback(active) end
-    end)
-end
-
-createToggle("Auto-Join", 150, function(state)
-    autoJoinEnabled = state
-end)
-createToggle("Auto-Force", 340, function(state)
-    -- Hier kannst du zusätzliche Aktionen für Auto-Force einfügen
-end)
 
 -- Live Feed Scroll-Container
 local FeedScroll = Instance.new("ScrollingFrame")
 FeedScroll.Size = UDim2.new(0, 365, 0, 250)
 FeedScroll.Position = UDim2.new(0, 140, 0, 55)
 FeedScroll.BackgroundTransparency = 1
-FeedScroll.CanvasSize = UDim2.new(0, 0, 0, 400)
+FeedScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 FeedScroll.ScrollBarThickness = 4
 FeedScroll.Parent = MainFrame
 
--- Echte Server-Hop Funktion (sucht über die Roblox API nach anderen Servern und joint)
-local function hopToBestServer()
-    local success, serveList = pcall(function()
-        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        return HttpService:JSONDecode(game:HttpGet(url))
-    end)
-    
-    if success and serveList and serveList.data then
-        for _, srv in ipairs(serveList.data) do
-            if srv.playing < srv.maxPlayers and srv.id ~= game.JobId then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, srv.id, LocalPlayer)
-                break
-            end
-        end
-    end
-end
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = FeedScroll
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 6)
 
-local function addFeedItem(title, subText)
+UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+end)
+
+-- Funktion zum Hinzufügen von Einträgen (Divine & Eternal Pets/Eier)
+local function addFeedItem(itemName, rarity, valueText, timeText)
     local itemFrame = Instance.new("Frame")
     itemFrame.Size = UDim2.new(1, -10, 0, 50)
     itemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -186,8 +119,9 @@ local function addFeedItem(title, subText)
     t.Size = UDim2.new(0, 200, 0, 20)
     t.Position = UDim2.new(0, 10, 0, 8)
     t.BackgroundTransparency = 1
-    t.Text = title
-    t.TextColor3 = Color3.fromRGB(255, 255, 255)
+    t.Text = itemName .. " [ " .. valueText .. " ]"
+    -- Farbe je nach Seltenheit (Eternal = Lila, Divine = Blau)
+    t.TextColor3 = (rarity == "Eternal") and Color3.fromRGB(155, 89, 182) or Color3.fromRGB(52, 152, 219)
     t.TextSize = 13
     t.Font = Enum.Font.GothamBold
     t.TextXAlignment = Enum.TextXAlignment.Left
@@ -197,13 +131,14 @@ local function addFeedItem(title, subText)
     sub.Size = UDim2.new(0, 200, 0, 15)
     sub.Position = UDim2.new(0, 10, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = subText
+    sub.Text = timeText .. " • " .. rarity
     sub.TextColor3 = Color3.fromRGB(150, 150, 150)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
     sub.TextXAlignment = Enum.TextXAlignment.Left
     sub.Parent = itemFrame
     
+    -- JOIN Button
     local joinBtn = Instance.new("TextButton")
     joinBtn.Size = UDim2.new(0, 55, 0, 28)
     joinBtn.Position = UDim2.new(1, -65, 0, 11)
@@ -218,34 +153,17 @@ local function addFeedItem(title, subText)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    joinBtn.MouseButton1Click:Connect(function()
-        hopToBestServer()
-    end)
-    
-    -- Wenn Auto-Join aktiv ist, direkt in den nächsten guten Server wechseln
-    if autoJoinEnabled then
-        task.spawn(function()
-            task.wait(1)
-            hopToBestServer()
+    joinBtn.Activated:Connect(function()
+        pcall(function()
+            -- Beispiel für Server-Wechsel (Platzhalter oder aktuelle JobId)
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
         end)
-    end
+    end)
 end
 
--- Beispiel-Einträge für das UI
-addFeedItem("Starry Fox [ Best Spawn ]", "Top • Active • Secret")
-addFeedItem("Mega Egg Server", "High Value • Active")
+-- Test-Einträge für Divine und Eternal hinzufügen
+addFeedItem("Divine Dragon", "Divine", "$18.4B/s", "0:11")
+addFeedItem("Eternal Phoenix", "Eternal", "$45.2B/s", "0:12")
+addFeedItem("Starry Fox", "Divine", "$6.1B/s", "0:10")
 
--- Echter Auto-Strahler / Anti-Hit (Schutz vor Schlägen)
--- Verhindert, dass feindliche Angriffe/Hits registriert werden, indem der Charakter-Status modifiziert wird
-RunService.Stepped:Connect(function()
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("Humanoid") then
-        -- Setzt die Humanoid-Zustände so, dass man immun gegen bestimmte Treffer-Effekte oder Stuns wird
-        pcall(function()
-            char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-            char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-        end)
-    end
-end)
-
-print("CeboFinder Fully Functional for Mobile Loaded!")
+print("CeboFinder Mobile UI erfolgreich geladen!")
