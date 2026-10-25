@@ -1,29 +1,20 @@
--- CeboFinder - Mobile Executor Crash-Fix & Free Eggs Only
+-- CeboFinder - Finaler Mobile Fix & Base-Return
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Sicherstellen, dass das alte UI komplett gelöscht wird
+-- Altes UI sicher entfernen
 pcall(function()
-    if CoreGui:FindFirstChild("CeboFinderMobile") then
-        CoreGui.CeboFinderMobile:Destroy()
-    end
-    if LocalPlayer.PlayerGui:FindFirstChild("CeboFinderMobile") then
-        LocalPlayer.PlayerGui.CeboFinderMobile:Destroy()
-    end
+    if CoreGui:FindFirstChild("CeboFinderMobile") then CoreGui.CeboFinderMobile:Destroy() end
+    if LocalPlayer.PlayerGui:FindFirstChild("CeboFinderMobile") then LocalPlayer.PlayerGui.CeboFinderMobile:Destroy() end
 end)
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CeboFinderMobile"
--- Versucht es in CoreGui zu laden, wenn das fehlschlägt, in PlayerGui
-local success = pcall(function()
-    ScreenGui.Parent = CoreGui
-end)
-if not success then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-end
+local success = pcall(function() ScreenGui.Parent = CoreGui end)
+if not success then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 ScreenGui.ResetOnSpawn = false
 
 -- Hauptfenster
@@ -55,7 +46,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 180, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Free World Eggs Only"
+StatusLabel.Text = "■ Free Eggs & Base Return"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -84,20 +75,13 @@ FloatingBtn.InputBegan:Connect(function(input)
         dragging = true
         dragStart = input.Position
         startPos = FloatingBtn.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
     end
 end)
-
 FloatingBtn.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
         dragInput = input
     end
 end)
-
 game:GetService("UserInputService").InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
@@ -164,25 +148,26 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- Filter: Nur freie Eier in der Welt (ignoriert Spieler-Inventare, Rucksäcke und fremden Besitz)
-local function isFreeWorldEgg(obj)
+-- Super strikter Filter: Keine Meshes, keine fremden Eier, nur echte Welt-Eier
+local function isValidEgg(obj)
+    if not obj or not obj.Parent then return false end
     local name = obj.Name:lower()
     
-    -- Prüfen, ob das Objekt sich im Rucksack oder Charakter eines Spielers befindet (gehört jemand anderem)
+    -- Gehört es einem anderen Spieler oder ist im Rucksack?
     local ancestor = obj.Parent
-    while ancestor do
-        if ancestor:IsA("Player") or ancestor:IsA("Backpack") or ancestor.Name == "Backpack" then
+    while ancestor and ancestor ~= Workspace do
+        if ancestor:IsA("Player") or ancestor:IsA("Backpack") or ancestor.Name:lower():find("backpack") then
             return false
         end
         ancestor = ancestor.Parent
     end
     
-    -- Müll ausschließen
-    if name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("zone") or name:find("spawn") or name:find("room") or name:find("monkey") or name:find("gorilla") then
+    -- Müll und Mesh-Builder Bauteile blockieren
+    if name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("zone") or name:find("spawn") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") then
         return false
     end
     
-    -- Nur echte freie Eier
+    -- Muss ein echtes Ei sein
     if (name:find("egg") or name:find("ei")) and (obj:IsA("Model") or obj:IsA("BasePart")) then
         return true
     end
@@ -190,8 +175,25 @@ local function isFreeWorldEgg(obj)
     return false
 end
 
-local function registerFreeEgg(obj)
-    if not isFreeWorldEgg(obj) then return end
+-- Funktion zum Ermitteln der eigenen Base-Position
+local function getPlayerBasePosition()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        local name = obj.Name:lower()
+        if (name:find("base") or name:find("plot") or name:find("home")) and (obj:IsA("BasePart") or obj:IsA("Model")) then
+            if name:find(LocalPlayer.Name:lower()) then
+                if obj:IsA("BasePart") then return obj.Position else return (obj.PrimaryPart and obj.PrimaryPart.Position or obj:FindFirstChildWhichIsA("BasePart").Position) end
+            end
+        end
+    end
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        return char.HumanoidRootPart.Position
+    end
+    return Vector3.new(0, 5, 0)
+end
+
+local function registerEggItem(obj)
+    if not isValidEgg(obj) then return end
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
     local itemFrame = Instance.new("Frame")
@@ -257,7 +259,7 @@ local function registerFreeEgg(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- HINGEHEN UND GREIFEN
+    -- HINGEHEN, GREIFEN UND ZUR BASE BRINGEN
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
@@ -272,6 +274,7 @@ local function registerFreeEgg(obj)
             end
             
             if targetPart then
+                -- 1. Zum Ei hinlaufen
                 humanoid:MoveTo(targetPart.Position)
                 
                 local conn
@@ -283,6 +286,7 @@ local function registerFreeEgg(obj)
                     
                     local distance = (rootPart.Position - targetPart.Position).Magnitude
                     if distance <= 7 then
+                        -- 2. Ei einsammeln
                         pcall(function()
                             for _, prompt in ipairs(obj:GetDescendants()) do
                                 if prompt:IsA("ProximityPrompt") then
@@ -297,6 +301,12 @@ local function registerFreeEgg(obj)
                                 firetouchinterest(rootPart, targetPart, 1)
                             end
                         end)
+                        
+                        -- 3. Automatisch zurück zur Base laufen
+                        task.wait(0.2)
+                        local basePos = getPlayerBasePosition()
+                        humanoid:MoveTo(basePos)
+                        
                         if conn then conn:Disconnect() end
                     end
                 end)
@@ -318,13 +328,20 @@ local function registerFreeEgg(obj)
 end
 
 -- Scan starten
-for _, obj in ipairs(Workspace:GetDescendants()) do
-    pcall(function() registerFreeEgg(obj) end)
+for _, obj in ipairs(Workspace:GetChildren()) do
+    if obj:IsA("Folder") or obj:IsA("Model") then
+        for _, child in ipairs(obj:GetDescendants()) do
+            pcall(function() registerEggItem(child) end)
+        end
+    end
+end
+for _, obj in ipairs(Workspace:GetChildren()) do
+    pcall(function() registerEggItem(obj) end)
 end
 
 Workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
-    pcall(function() registerFreeEgg(obj) end)
+    pcall(function() registerEggItem(obj) end)
 end)
 
 print("CeboFinder erfolgreich geladen!")
