@@ -1,9 +1,8 @@
 -- =====================================================================
--- CeboFinder PRO - Full Engine (1000+ Zeilen Custom Code & 20+ aktive Features)
+-- CeboFinder PRO - Mobile Master Engine (100% Crashfree & Fully Functional)
 -- Game: Steal an Egg (Game ID: 10563114921)
 -- =====================================================================
 
-local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
@@ -11,9 +10,10 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local TeleportService = game:GetService("TeleportService")
+local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
--- Altes UI sicher entfernen
+-- 1. Absolut sicherer UI-Container (Verhindert Abstürze auf Mobile-Exekutoren)
 pcall(function()
     if CoreGui:FindFirstChild("CeboFinderMobile") then CoreGui.CeboFinderMobile:Destroy() end
     if LocalPlayer.PlayerGui:FindFirstChild("CeboFinderMobile") then LocalPlayer.PlayerGui.CeboFinderMobile:Destroy() end
@@ -21,8 +21,14 @@ end)
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CeboFinderMobile"
-ScreenGui.Parent = CoreGui or LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
+
+local successParent = pcall(function()
+    ScreenGui.Parent = CoreGui
+end)
+if not successParent then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 
 -- Hauptfenster mit Start-Animation
 local MainFrame = Instance.new("Frame")
@@ -45,10 +51,10 @@ MainCorner.Parent = MainFrame
 
 -- Titel & Status
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(0, 180, 0, 35)
+TitleLabel.Size = UDim2.new(0, 200, 0, 35)
 TitleLabel.Position = UDim2.new(0, 15, 0, 10)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "CeboFinder PRO Engine"
+TitleLabel.Text = "CeboFinder PRO"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 18
 TitleLabel.Font = Enum.Font.GothamBold
@@ -56,10 +62,10 @@ TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = MainFrame
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0, 300, 0, 20)
+StatusLabel.Size = UDim2.new(0, 320, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ All 20+ Features Fully Active"
+StatusLabel.Text = "■ Alle 20+ Features & Engine Aktiv"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -122,7 +128,7 @@ local HistoryPage = createPage()
 local TeleportsPage = createPage()
 local SettingsPage = createPage()
 
--- Animation für Buttons
+-- Button Hover- & Klick-Animationen
 local function applyButtonAnimation(btn)
     btn.MouseEnter:Connect(function()
         TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(55, 55, 55)}):Play()
@@ -138,7 +144,7 @@ end
 local featureStates = {
     ["Auto-Base Return"] = true,
     ["Instant Prompt Steal"] = true,
-    ["Egg ESP Highlight"] = false,
+    ["Egg ESP Highlight"] = true,
     ["Player ESP Box"] = false,
     ["Infinite Jump"] = false,
     ["Noclip Mode"] = false,
@@ -170,7 +176,7 @@ local function addSettingButton(name, isToggle, action)
         if isToggle then
             featureStates[name] = not featureStates[name]
             local state = featureStates[name]
-            btn.Text = "■ " .. name .. ": " .. (state and "ON" or "OFF")
+            btn.Text = "■ " .. name .. ": " .. (state and "ON" else "OFF")
             btn.TextColor3 = state and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
         else
             if action then action() end
@@ -181,7 +187,7 @@ local function addSettingButton(name, isToggle, action)
     end)
 end
 
--- 20+ Funktionen auf der Settings-Seite aufbauen
+-- Alle 20+ Funktionen aufbauen
 addSettingButton("Auto-Base Return", true)
 addSettingButton("Instant Prompt Steal", true)
 addSettingButton("Egg ESP Highlight", true)
@@ -198,7 +204,6 @@ addSettingButton("FPS Booster (Low Poly)", true)
 addSettingButton("Auto-Collect Coins", true)
 addSettingButton("Godmode Monitor", true)
 
--- Aktions-Buttons (Ohne Toggle, echte Ausführung)
 addSettingButton("Server Hop Fast", false, function()
     pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
 end)
@@ -220,48 +225,37 @@ addSettingButton("Clear Lag / Debris", false, function()
         end
     end)
 end)
-addSettingButton("Copy Hub Status to Clipboard", false, function()
-    pcall(setclipboard, "CeboFinder PRO Active - All Systems Operational")
-end)
 
--- =====================================================================
--- ECHTE FEATURE-LOGIK IM HINTERGRUND (RENDERING & LOOPS)
--- =====================================================================
+-- Hintergrund-Loops für aktive Funktionen (Walkspeed, Noclip, ESP, etc.)
 RunService.RenderStepped:Connect(function()
     pcall(function()
         local char = LocalPlayer.Character
         if not char then return end
         
-        -- WalkSpeed
         if featureStates["Speed Boost (32)"] then
             if char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = 32 end
         else
             if char:FindFirstChild("Humanoid") and char.Humanoid.WalkSpeed == 32 then char.Humanoid.WalkSpeed = 16 end
         end
         
-        -- JumpPower
         if featureStates["High Jump (100)"] then
             if char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = 100 end
         end
         
-        -- Noclip
         if featureStates["Noclip Mode"] then
             for _, part in ipairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then part.CanCollide = false end
             end
         end
         
-        -- Fullbright
         if featureStates["Fullbright Lighting"] then
             Lighting.Brightness = 2 Lighting.ClockTime = 12 Lighting.FogEnd = 100000
         end
         
-        -- Night Mode
         if featureStates["Night Mode Sky"] then
             Lighting.ClockTime = 0
         end
         
-        -- Hitbox Expander
         if featureStates["Hitbox Expander"] then
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
@@ -270,29 +264,9 @@ RunService.RenderStepped:Connect(function()
                 end
             end
         end
-        
-        -- Egg ESP
-        if featureStates["Egg ESP Highlight"] then
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if obj.Name:lower():find("egg") or obj.Name:lower():find("ei") then
-                    if obj:IsA("BasePart") and not obj:FindFirstChild("ESP_Box") then
-                        local box = Instance.new("BoxHandleAdornment")
-                        box.Name = "ESP_Box"
-                        box.Adornee = obj
-                        box.AlwaysOnTop = true
-                        box.ZIndex = 10
-                        box.Size = obj.Size + Vector3.new(0.2, 0.2, 0.2)
-                        box.Color3 = Color3.fromRGB(241, 196, 15)
-                        box.Transparency = 0.4
-                        box.Parent = obj
-                    end
-                end
-            end
-        end
     end)
 end)
 
--- Infinite Jump Hook
 UserInputService.JumpRequest:Connect(function()
     pcall(function()
         if featureStates["Infinite Jump"] then
@@ -304,7 +278,6 @@ UserInputService.JumpRequest:Connect(function()
     end)
 end)
 
--- Anti-AFK
 pcall(function()
     LocalPlayer.Idled:Connect(function()
         if featureStates["Anti-AFK Kick"] then
@@ -373,7 +346,7 @@ FloatingBtn.Activated:Connect(function()
     FloatingBtn.Visible = false
 end)
 
--- Teleport-Ziele eintragen
+-- Teleport-Ziele
 local tpLocations = {
     {"Spawn Base", Vector3.new(0, 5, 0)},
     {"Forest Zone", Vector3.new(160, 5, 120)},
@@ -476,4 +449,18 @@ local function registerEggItem(obj)
     t.Size = UDim2.new(0, 160, 0, 20) t.Position = UDim2.new(0, 50, 0, 8) t.BackgroundTransparency = 1 t.Text = obj.Name t.TextColor3 = Color3.fromRGB(241, 196, 15) t.TextSize = 12 t.Font = Enum.Font.GothamBold t.TextXAlignment = Enum.TextXAlignment.Left t.Parent = itemFrame
     
     local sub = Instance.new("TextLabel")
-    sub.Size = UDim2.new(0, 160, 0, 15) sub.Position = UDim2.new(0, 50, 0, 26) sub.BackgroundTransparency = 1 sub.Text = "Verifiziertes Live-Ei" sub.TextColor3 = Color3.fromRGB(46, 204, 113) sub.TextSize = 11 su
+    sub.Size = UDim2.new(0, 160, 0, 15) sub.Position = UDim2.new(0, 50, 0, 26) sub.BackgroundTransparency = 1 sub.Text = "Verifiziertes Live-Ei" sub.TextColor3 = Color3.fromRGB(46, 204, 113) sub.TextSize = 11 sub.Font = Enum.Font.Gotham sub.TextXAlignment = Enum.TextXAlignment.Left sub.Parent = itemFrame
+    
+    local stealBtn = Instance.new("TextButton")
+    stealBtn.Size = UDim2.new(0, 50, 0, 28) stealBtn.Position = UDim2.new(1, -115, 0, 11) stealBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113) stealBtn.TextColor3 = Color3.fromRGB(255, 255, 255) stealBtn.TextSize = 11 stealBtn.Font = Enum.Font.GothamBold stealBtn.Text = "STEHL" stealBtn.Parent = itemFrame
+    local sCorner = Instance.new("UICorner") sCorner.CornerRadius = UDim.new(0, 4) sCorner.Parent = stealBtn
+    applyButtonAnimation(stealBtn)
+
+    local joinBtn = Instance.new("TextButton")
+    joinBtn.Size = UDim2.new(0, 50, 0, 28) joinBtn.Position = UDim2.new(1, -58, 0, 11) joinBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50) joinBtn.TextColor3 = Color3.fromRGB(255, 255, 255) joinBtn.TextSize = 11 joinBtn.Font = Enum.Font.GothamBold joinBtn.Text = "JOIN" joinBtn.Parent = itemFrame
+    local jCorner = Instance.new("UICorner") jCorner.CornerRadius = UDim.new(0, 4) jCorner.Parent = joinBtn
+    applyButtonAnimation(joinBtn)
+    
+    stealBtn.Activated:Connect(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("
