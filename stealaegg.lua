@@ -1,5 +1,6 @@
 -- =====================================================================
--- CeboFinder PRO - Ultimate Fix (Absolute Blacklist für Ceiling/Walls & Instant Steal)
+-- CeboFinder PRO - Dein eigenes, perfektes Skript für Steal an Egg
+-- Game ID: 10563114921
 -- =====================================================================
 
 local CoreGui = game:GetService("CoreGui")
@@ -9,7 +10,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Altes UI entfernen
+-- Altes UI sicher entfernen
 pcall(function()
     if CoreGui:FindFirstChild("CeboFinderMobile") then CoreGui.CeboFinderMobile:Destroy() end
     if LocalPlayer.PlayerGui:FindFirstChild("CeboFinderMobile") then LocalPlayer.PlayerGui.CeboFinderMobile:Destroy() end
@@ -50,7 +51,7 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 280, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Pro Anti-Ceiling & Instant Steal Active"
+StatusLabel.Text = "■ Custom Prompt Filter Active"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -134,7 +135,7 @@ UsersPage.Parent = PagesContainer
 local UsersLayout = Instance.new("UIListLayout") UsersLayout.Parent = UsersPage UsersLayout.SortOrder = Enum.SortOrder.LayoutOrder UsersLayout.Padding = UDim.new(0, 6)
 UsersLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() UsersPage.CanvasSize = UDim2.new(0, 0, 0, UsersLayout.AbsoluteContentSize.Y) end)
 
--- 4. Settings Page (Mit neuen Profi-Optionen)
+-- 4. Settings Page
 local SettingsPage = Instance.new("ScrollingFrame")
 SettingsPage.Name = "SettingsPage"
 SettingsPage.Size = UDim2.new(0, 365, 0, 250)
@@ -159,23 +160,6 @@ toggleAutoReturn.Activated:Connect(function()
     autoReturnEnabled = not autoReturnEnabled
     toggleAutoReturn.Text = autoReturnEnabled and "■ Auto-Base Return: ON" or "□ Auto-Base Return: OFF"
     toggleAutoReturn.TextColor3 = autoReturnEnabled and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-end)
-
-local instantSteal = true
-local toggleInstant = Instance.new("TextButton")
-toggleInstant.Size = UDim2.new(1, -10, 0, 40)
-toggleInstant.Position = UDim2.new(0, 0, 0, 60)
-toggleInstant.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-toggleInstant.TextColor3 = Color3.fromRGB(46, 204, 113)
-toggleInstant.TextSize = 13
-toggleInstant.Font = Enum.Font.GothamMedium
-toggleInstant.Text = "■ Instant Prompt Steal: ON"
-toggleInstant.Parent = SettingsPage
-local s2 = Instance.new("UICorner") s2.CornerRadius = UDim.new(0, 6) s2.Parent = toggleInstant
-toggleInstant.Activated:Connect(function()
-    instantSteal = not instantSteal
-    toggleInstant.Text = instantSteal and "■ Instant Prompt Steal: ON" or "□ Instant Prompt Steal: OFF"
-    toggleInstant.TextColor3 = instantSteal and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
 end)
 
 -- Sidebar Verknüpfung
@@ -222,7 +206,7 @@ end
 
 FloatingBtn.Activated:Connect(function() MainFrame.Visible = true FloatingBtn.Visible = false end)
 
--- User-Liste
+-- User-Liste aktualisieren
 local function updateUsersList()
     for _, child in ipairs(UsersPage:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end
     for _, p in ipairs(Players:GetPlayers()) do
@@ -233,7 +217,7 @@ local function updateUsersList()
 end
 Players.PlayerAdded:Connect(updateUsersList) Players.PlayerRemoving:Connect(updateUsersList) updateUsersList()
 
--- History
+-- History hinzufügen
 local function addHistoryItem(eggName)
     local hFrame = Instance.new("Frame") hFrame.Size = UDim2.new(1, -10, 0, 45) hFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35) hFrame.Parent = HistoryPage
     local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 6) c.Parent = hFrame
@@ -241,42 +225,34 @@ local function addHistoryItem(eggName)
 end
 
 -- =====================================================================
--- RADIKALER ANTI-MÜLL FILTER (Blockiert Ceiling, Trims, Wände, Shops komplett)
+-- FEHLERFREIER EIER-FILTER (Prüft rein auf das echte Stehlen-Prompt!)
 -- =====================================================================
-local function isStrictRealEgg(obj)
-    if not obj or not obj.Parent then return false end
-    local name = obj.Name:lower()
-    
-    -- Absolute Blacklist gegen jegliche Decken, Wände, Leisten, Shops und Müllobjekte
-    if name:find("ceiling") or name:find("trim") or name:find("wall") or name:find("floor") or name:find("shop") or name:find("store") or name:find("portal") or name:find("bounds") or name:find("spot") or name:find("internal") or name:find("holder") or name:find("spawn") or name:find("zone") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("pipe") or name:find("light") or name:find("rock") or name:find("section") or name:find("panel") or name:find("interior") or name:find("point") then
-        return false
-    end
-    
-    -- Das Objekt MUSS zwingend ein aktives ProximityPrompt zum Stehlen besitzen!
-    local hasStealPrompt = false
+local function getStealPrompt(obj)
     for _, desc in ipairs(obj:GetDescendants()) do
         if desc:IsA("ProximityPrompt") then
-            hasStealPrompt = true
-            break
-        end
-    end
-    
-    if not hasStealPrompt and obj:IsA("Model") then
-        if obj.PrimaryPart then
-            for _, desc in ipairs(obj.PrimaryPart:GetDescendants()) do
-                if desc:IsA("ProximityPrompt") then hasStealPrompt = true break end
+            local action = desc.ActionText:lower()
+            -- Nur wenn die Aktion "steal" oder "stehlen" heißt (Shops haben "buy"/"kaufen" und fallen raus!)
+            if action:find("steal") or action:find("stehlen") then
+                return desc
             end
         end
     end
+    return nil
+end
+
+local function isRealEgg(obj)
+    if not obj or not obj.Parent then return false end
     
-    if not hasStealPrompt then return false end
+    -- Muss ein Model oder BasePart sein
+    if not (obj:IsA("Model") or obj:IsA("BasePart")) then return false end
     
-    -- Name muss Ei enthalten
-    if name:find("egg") or name:find("ei") then
-        return true
+    -- Prüfen ob ein echtes Stehlen-Prompt existiert
+    local prompt = getStealPrompt(obj)
+    if prompt then
+        return true, prompt
     end
     
-    return false
+    return false, nil
 end
 
 local function getPlayerBasePosition()
@@ -294,7 +270,8 @@ local function getPlayerBasePosition()
 end
 
 local function registerEggItem(obj)
-    if not isStrictRealEgg(obj) then return end
+    local isEgg, promptObj = isRealEgg(obj)
+    if not isEgg then return end
     if LogsPage:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
     local itemFrame = Instance.new("Frame")
@@ -313,7 +290,7 @@ local function registerEggItem(obj)
     t.Size = UDim2.new(0, 150, 0, 20) t.Position = UDim2.new(0, 50, 0, 8) t.BackgroundTransparency = 1 t.Text = obj.Name t.TextColor3 = Color3.fromRGB(241, 196, 15) t.TextSize = 12 t.Font = Enum.Font.GothamBold t.TextXAlignment = Enum.TextXAlignment.Left t.Parent = itemFrame
     
     local sub = Instance.new("TextLabel")
-    sub.Size = UDim2.new(0, 150, 0, 15) sub.Position = UDim2.new(0, 50, 0, 26) sub.BackgroundTransparency = 1 sub.Text = "Verified Live Egg" sub.TextColor3 = Color3.fromRGB(46, 204, 113) sub.TextSize = 11 sub.Font = Enum.Font.Gotham sub.TextXAlignment = Enum.TextXAlignment.Left sub.Parent = itemFrame
+    sub.Size = UDim2.new(0, 150, 0, 15) sub.Position = UDim2.new(0, 50, 0, 26) sub.BackgroundTransparency = 1 sub.Text = "Echtes stehlbares Ei" sub.TextColor3 = Color3.fromRGB(46, 204, 113) sub.TextSize = 11 sub.Font = Enum.Font.Gotham sub.TextXAlignment = Enum.TextXAlignment.Left sub.Parent = itemFrame
     
     local stealBtn = Instance.new("TextButton")
     stealBtn.Size = UDim2.new(0, 50, 0, 28) stealBtn.Position = UDim2.new(1, -115, 0, 11) stealBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113) stealBtn.TextColor3 = Color3.fromRGB(255, 255, 255) stealBtn.TextSize = 11 stealBtn.Font = Enum.Font.GothamBold stealBtn.Text = "STEHL" stealBtn.Parent = itemFrame
@@ -336,10 +313,8 @@ local function registerEggItem(obj)
                     if not targetPart or not targetPart.Parent then if conn then conn:Disconnect() end return end
                     if (rootPart.Position - targetPart.Position).Magnitude <= 9 then
                         pcall(function()
-                            for _, prompt in ipairs(obj:GetDescendants()) do
-                                if prompt:IsA("ProximityPrompt") then
-                                    if instantSteal then fireproximityprompt(prompt) else fireproximityprompt(prompt) end
-                                end
+                            if promptObj then
+                                fireproximityprompt(promptObj)
                             end
                         end)
                         addHistoryItem(obj.Name)
@@ -369,4 +344,4 @@ Workspace.DescendantAdded:Connect(function(obj)
     pcall(function() registerEggItem(obj) end)
 end)
 
-print("CeboFinder PRO Ultimate geladen!")
+print("CeboFinder Custom Prompt-Filter erfolgreich gestartet!")
