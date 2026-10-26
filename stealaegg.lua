@@ -1,424 +1,361 @@
-
---========================================================
--- EGG FINDER PRO | MOBILE + PC
--- Für dein eigenes Roblox-Spiel in Roblox Studio
---========================================================
-
+-- CeboFinder - Steal an Egg (Game ID: 10563114921) Final Backend Pro-Filter
+local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
-local CollectionService = game:GetService("CollectionService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+-- Altes UI sicher entfernen
+pcall(function()
+    if CoreGui:FindFirstChild("CeboFinderMobile") then CoreGui.CeboFinderMobile:Destroy() end
+    if LocalPlayer.PlayerGui:FindFirstChild("CeboFinderMobile") then LocalPlayer.PlayerGui.CeboFinderMobile:Destroy() end
+end)
 
-local TAG_NAME = "Egg"
-local SCAN_INTERVAL = 5
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CeboFinderMobile"
+local success = pcall(function() ScreenGui.Parent = CoreGui end)
+if not success then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+ScreenGui.ResetOnSpawn = false
 
--- Altes GUI entfernen
-local old = playerGui:FindFirstChild("EggFinderPro")
-if old then
-    old:Destroy()
-end
+-- Hauptfenster
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 520, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = true
+MainFrame.Parent = ScreenGui
 
--- Farben
-local BG = Color3.fromRGB(19, 23, 33)
-local PANEL = Color3.fromRGB(29, 35, 48)
-local GREEN = Color3.fromRGB(43, 190, 125)
-local WHITE = Color3.fromRGB(245, 247, 255)
-local MUTED = Color3.fromRGB(165, 177, 194)
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
 
--- GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "EggFinderPro"
-gui.ResetOnSpawn = false
-gui.DisplayOrder = 20
-gui.Parent = playerGui
+-- Titel & Status
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(0, 140, 0, 35)
+TitleLabel.Position = UDim2.new(0, 15, 0, 10)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "CeboFinder"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 18
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = MainFrame
 
-local main = Instance.new("Frame")
-main.Name = "Main"
-main.AnchorPoint = Vector2.zero
-main.Size = UDim2.new(0.88, 0, 0, 390)
-main.Position = UDim2.new(0.06, 0, 0.2, 0)
-main.BackgroundColor3 = BG
-main.BorderSizePixel = 0
-main.ClipsDescendants = true
-main.Parent = gui
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(0, 240, 0, 20)
+StatusLabel.Position = UDim2.new(0, 15, 0, 32)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "■ Backend Prompt Filter Active"
+StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
+StatusLabel.TextSize = 11
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatusLabel.Parent = MainFrame
 
-local sizeLimit = Instance.new("UISizeConstraint")
-sizeLimit.MinSize = Vector2.new(260, 300)
-sizeLimit.MaxSize = Vector2.new(430, 520)
-sizeLimit.Parent = main
+-- Verschiebbarer Kreis (Hide Button)
+local FloatingBtn = Instance.new("TextButton")
+FloatingBtn.Size = UDim2.new(0, 50, 0, 50)
+FloatingBtn.Position = UDim2.new(0, 50, 0, 50)
+FloatingBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+FloatingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FloatingBtn.TextSize = 12
+FloatingBtn.Font = Enum.Font.GothamBold
+FloatingBtn.Text = "CF"
+FloatingBtn.Visible = false
+FloatingBtn.Parent = ScreenGui
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 16)
-corner.Parent = main
+local FCorner = Instance.new("UICorner")
+FCorner.CornerRadius = UDim.new(1, 0)
+FCorner.Parent = FloatingBtn
 
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(65, 85, 105)
-stroke.Thickness = 1.3
-stroke.Parent = main
-
--- Kopfzeile
-local header = Instance.new("Frame")
-header.Name = "DragHeader"
-header.Size = UDim2.new(1, 0, 0, 58)
-header.BackgroundColor3 = PANEL
-header.BorderSizePixel = 0
-header.Active = true
-header.Parent = main
-
-local headerCorner = Instance.new("UICorner")
-headerCorner.CornerRadius = UDim.new(0, 16)
-headerCorner.Parent = header
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -65, 1, 0)
-title.Position = UDim2.fromOffset(14, 0)
-title.BackgroundTransparency = 1
-title.Text = "🥚  EGG FINDER PRO"
-title.TextColor3 = WHITE
-title.Font = Enum.Font.GothamBold
-title.TextSize = 17
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = header
-
-local close = Instance.new("TextButton")
-close.Name = "Close"
-close.Size = UDim2.fromOffset(36, 36)
-close.Position = UDim2.new(1, -45, 0, 11)
-close.BackgroundColor3 = Color3.fromRGB(210, 72, 82)
-close.Text = "×"
-close.TextColor3 = WHITE
-close.TextSize = 26
-close.Font = Enum.Font.GothamBold
-close.Parent = header
-
-Instance.new("UICorner", close).CornerRadius = UDim.new(0, 10)
-
--- Status
-local status = Instance.new("TextLabel")
-status.Position = UDim2.fromOffset(14, 65)
-status.Size = UDim2.new(1, -28, 0, 28)
-status.BackgroundTransparency = 1
-status.Text = "Bereit zum Suchen"
-status.TextColor3 = MUTED
-status.TextSize = 13
-status.Font = Enum.Font.Gotham
-status.TextXAlignment = Enum.TextXAlignment.Left
-status.Parent = main
-
--- Aktualisieren
-local refresh = Instance.new("TextButton")
-refresh.Position = UDim2.fromOffset(12, 98)
-refresh.Size = UDim2.new(1, -24, 0, 42)
-refresh.BackgroundColor3 = GREEN
-refresh.Text = "⌕   EIER SUCHEN"
-refresh.TextColor3 = Color3.fromRGB(12, 35, 27)
-refresh.TextSize = 15
-refresh.Font = Enum.Font.GothamBold
-refresh.Parent = main
-
-Instance.new("UICorner", refresh).CornerRadius = UDim.new(0, 11)
-
--- Eierliste
-local list = Instance.new("ScrollingFrame")
-list.Name = "EggList"
-list.Position = UDim2.fromOffset(12, 151)
-list.Size = UDim2.new(1, -24, 1, -163)
-list.BackgroundColor3 = Color3.fromRGB(14, 17, 25)
-list.BorderSizePixel = 0
-list.ScrollBarThickness = 4
-list.ScrollBarImageColor3 = GREEN
-list.AutomaticCanvasSize = Enum.AutomaticSize.Y
-list.CanvasSize = UDim2.new(0, 0, 0, 0)
-list.Parent = main
-
-Instance.new("UICorner", list).CornerRadius = UDim.new(0, 11)
-
-local padding = Instance.new("UIPadding")
-padding.PaddingTop = UDim.new(0, 8)
-padding.PaddingBottom = UDim.new(0, 8)
-padding.PaddingLeft = UDim.new(0, 8)
-padding.PaddingRight = UDim.new(0, 8)
-padding.Parent = list
-
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 7)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = list
-
--- Kleiner Button zum Wiederöffnen
-local reopen = Instance.new("TextButton")
-reopen.Name = "Reopen"
-reopen.Size = UDim2.fromOffset(54, 54)
-reopen.Position = UDim2.new(0, 12, 0.5, -27)
-reopen.BackgroundColor3 = GREEN
-reopen.Text = "🥚"
-reopen.TextSize = 25
-reopen.Visible = false
-reopen.Parent = gui
-
-Instance.new("UICorner", reopen).CornerRadius = UDim.new(1, 0)
-
--- Fenster verschieben: Maus und Touch
-local dragging = false
-local dragInput
-local dragStart
-local startPosition
-
-header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-
+local dragging, dragInput, dragStart, startPos
+FloatingBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
-        dragInput = input
         dragStart = input.Position
-        startPosition = main.Position
-
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-                dragInput = nil
-            end
-        end)
+        startPos = FloatingBtn.Position
     end
 end)
-
+FloatingBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
 UserInputService.InputChanged:Connect(function(input)
-    if not dragging then
-        return
-    end
-
-    if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input == dragInput then
-
+    if input == dragInput and dragging then
         local delta = input.Position - dragStart
-        local camera = Workspace.CurrentCamera
-        if not camera then return end
-
-        local viewport = camera.ViewportSize
-        local width = main.AbsoluteSize.X
-        local height = main.AbsoluteSize.Y
-
-        local x = startPosition.X.Offset + delta.X
-        local y = startPosition.Y.Offset + delta.Y
-
-        x = math.clamp(x, 0, math.max(0, viewport.X - width))
-        y = math.clamp(y, 0, math.max(0, viewport.Y - height))
-
-        main.Position = UDim2.fromOffset(x, y)
+        FloatingBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
-close.Activated:Connect(function()
-    main.Visible = false
-    reopen.Visible = true
-end)
+-- Sidebar
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 120, 0, 250)
+Sidebar.Position = UDim2.new(0, 15, 0, 55)
+Sidebar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
 
-reopen.Activated:Connect(function()
-    main.Visible = true
-    reopen.Visible = false
-end)
+local SidebarCorner = Instance.new("UICorner")
+SidebarCorner.CornerRadius = UDim.new(0, 6)
+SidebarCorner.Parent = Sidebar
 
--- Eierfinder
-local scanning = false
-local currentHighlight
-
-local function getRoot()
-    local character = player.Character
-    return character and character:FindFirstChild("HumanoidRootPart")
-end
-
-local function getPosition(egg)
-    if egg:IsA("BasePart") then
-        return egg.Position
-    elseif egg:IsA("Model") then
-        return egg:GetPivot().Position
-    end
-end
-
-local function clearEntries()
-    for _, child in ipairs(list:GetChildren()) do
-        if child:GetAttribute("FinderEntry") then
-            child:Destroy()
+local tabs = {"Logs", "History", "Users", "Settings", "Hide"}
+for i, tabName in ipairs(tabs) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 35)
+    btn.Position = UDim2.new(0, 5, 0, (i - 1) * 42 + 8)
+    btn.BackgroundColor3 = (tabName == "Logs") and Color3.fromRGB(50, 50, 50) or Color3.fromRGB(40, 40, 40)
+    btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamMedium
+    btn.Text = tabName
+    btn.Parent = Sidebar
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 4)
+    btnCorner.Parent = btn
+    
+    btn.Activated:Connect(function()
+        if tabName == "Hide" then
+            MainFrame.Visible = false
+            FloatingBtn.Visible = true
         end
-    end
-end
-
-local function message(text)
-    local label = Instance.new("TextLabel")
-    label.Name = "EmptyMessage"
-    label:SetAttribute("FinderEntry", true)
-    label.Size = UDim2.new(1, -4, 0, 90)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = MUTED
-    label.TextSize = 14
-    label.Font = Enum.Font.Gotham
-    label.TextWrapped = true
-    label.LayoutOrder = 1
-    label.Parent = list
-end
-
-local function highlightEgg(egg)
-    if currentHighlight then
-        currentHighlight:Destroy()
-        currentHighlight = nil
-    end
-
-    if not egg:IsDescendantOf(Workspace) then
-        status.Text = "Dieses Ei ist nicht mehr verfügbar"
-        return
-    end
-
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "FinderHighlight"
-    highlight.Adornee = egg
-    highlight.FillColor = Color3.fromRGB(255, 205, 65)
-    highlight.OutlineColor = WHITE
-    highlight.FillTransparency = 0.45
-    highlight.DepthMode = Enum.HighlightDepthMode.Occluded
-    highlight.Parent = Workspace
-
-    currentHighlight = highlight
-    status.Text = "Markiert: " .. egg.Name
-end
-
-local function createEntry(egg, index)
-    local item = Instance.new("Frame")
-    item.Name = "EggEntry"
-    item:SetAttribute("FinderEntry", true)
-    item.Size = UDim2.new(1, -4, 0, 66)
-    item.BackgroundColor3 = PANEL
-    item.BorderSizePixel = 0
-    item.LayoutOrder = index
-    item.Parent = list
-
-    Instance.new("UICorner", item).CornerRadius = UDim.new(0, 9)
-
-    local name = Instance.new("TextLabel")
-    name.Position = UDim2.fromOffset(9, 5)
-    name.Size = UDim2.new(1, -100, 0, 25)
-    name.BackgroundTransparency = 1
-    name.Text = "🥚  " .. egg.Name
-    name.TextColor3 = Color3.fromRGB(255, 220, 120)
-    name.TextSize = 13
-    name.Font = Enum.Font.GothamBold
-    name.TextXAlignment = Enum.TextXAlignment.Left
-    name.TextTruncate = Enum.TextTruncate.AtEnd
-    name.Parent = item
-
-    local detail = Instance.new("TextLabel")
-    detail.Position = UDim2.fromOffset(9, 32)
-    detail.Size = UDim2.new(1, -100, 0, 22)
-    detail.BackgroundTransparency = 1
-    detail.TextColor3 = MUTED
-    detail.TextSize = 11
-    detail.Font = Enum.Font.Gotham
-    detail.TextXAlignment = Enum.TextXAlignment.Left
-    detail.Parent = item
-
-    local function updateDistance()
-        if not egg.Parent then
-            detail.Text = "Nicht mehr vorhanden"
-            return
-        end
-
-        local root = getRoot()
-        local ok, pos = pcall(getPosition, egg)
-
-        if ok and pos and root then
-            detail.Text = "Entfernung: "
-                .. math.floor((root.Position - pos).Magnitude)
-                .. " Studs"
-        else
-            detail.Text = "Position nicht verfügbar"
-        end
-    end
-
-    updateDistance()
-
-    local mark = Instance.new("TextButton")
-    mark.Position = UDim2.new(1, -88, 0, 16)
-    mark.Size = UDim2.fromOffset(79, 34)
-    mark.BackgroundColor3 = Color3.fromRGB(52, 115, 185)
-    mark.Text = "ANZEIGEN"
-    mark.TextColor3 = WHITE
-    mark.TextSize = 10
-    mark.Font = Enum.Font.GothamBold
-    mark.Parent = item
-
-    Instance.new("UICorner", mark).CornerRadius = UDim.new(0, 7)
-
-    mark.Activated:Connect(function()
-        highlightEgg(egg)
     end)
 end
 
-local function scanEggs()
-    if scanning then return end
-    scanning = true
+FloatingBtn.Activated:Connect(function()
+    MainFrame.Visible = true
+    FloatingBtn.Visible = false
+end)
 
-    refresh.Text = "SUCHE ..."
-    clearEntries()
+-- Feed
+local FeedScroll = Instance.new("ScrollingFrame")
+FeedScroll.Size = UDim2.new(0, 365, 0, 250)
+FeedScroll.Position = UDim2.new(0, 140, 0, 55)
+FeedScroll.BackgroundTransparency = 1
+FeedScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+FeedScroll.ScrollBarThickness = 4
+FeedScroll.Parent = MainFrame
 
-    local found = {}
-    local seen = {}
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = FeedScroll
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 6)
 
-    for _, egg in ipairs(CollectionService:GetTagged(TAG_NAME)) do
-        if egg:IsDescendantOf(Workspace)
-            and (egg:IsA("Model") or egg:IsA("BasePart"))
-            and not seen[egg] then
+UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+end)
 
-            seen[egg] = true
-            table.insert(found, egg)
+-- BACKEND-FILTER: Prüft ob es ein echtes Ei MIT ProximityPrompt (Stehlen-Interaktion) ist
+local function isRealCollectibleEggBackend(obj)
+    if not obj or not obj.Parent then return false end
+    local name = obj.Name:lower()
+    
+    -- Harter Ausschluss für jegliche Kollisionsboxen und Spots
+    if name:find("bounds") or name:find("spot") or name:find("fireinternal") or name:find("internal") or name:find("holder") or name:find("spawn") or name:find("zone") or name:find("area") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") or name:find("ceiling") or name:find("pipe") or name:find("light") or name:find("whirlpool") or name:find("rock") or name:find("section") or name:find("panel") or name:find("wall") or name:find("floor") or name:find("interior") or name:find("point") then
+        return false
+    end
+    
+    -- Backend-Check: Das echte Ei MUSS einen ProximityPrompt besitzen (nur echte Eier haben das zum Stehlen!)
+    local hasPrompt = false
+    for _, desc in ipairs(obj:GetDescendants()) do
+        if desc:IsA("ProximityPrompt") then
+            hasPrompt = true
+            break
         end
     end
-
-    table.sort(found, function(a, b)
-        return a.Name:lower() < b.Name:lower()
-    end)
-
-    if #found == 0 then
-        message(
-            "Keine Eier gefunden.\n\n" ..
-            "Füge deinen Ei-Modellen in Studio " ..
-            "den CollectionService-Tag 'Egg' hinzu."
-        )
-    else
-        for i, egg in ipairs(found) do
-            createEntry(egg, i)
+    if not hasPrompt and obj:IsA("Model") then
+        for _, desc in ipairs(obj:GetDescendants()) do
+            if desc:IsA("ProximityPrompt") then
+                hasPrompt = true
+                break
+            end
         end
     end
-
-    status.Text = "Gefundene Eier: " .. #found
-    refresh.Text = "⌕   EIER SUCHEN"
-    scanning = false
+    
+    if not hasPrompt then return false end
+    
+    -- Name muss Ei enthalten
+    if name:find("egg") or name:find("ei") then
+        if obj:IsA("BasePart") or obj:IsA("Model") then
+            return true
+        end
+    end
+    
+    return false
 end
 
-refresh.Activated:Connect(scanEggs)
-
--- Automatische Aktualisierung bei Tag-Änderungen
-CollectionService:GetInstanceAddedSignal(TAG_NAME):Connect(function()
-    task.defer(scanEggs)
-end)
-
-CollectionService:GetInstanceRemovedSignal(TAG_NAME):Connect(function()
-    task.defer(scanEggs)
-end)
-
--- Regelmäßig Entfernungen aktualisieren
-task.spawn(function()
-    while gui.Parent do
-        task.wait(SCAN_INTERVAL)
-        if main.Visible then
-            scanEggs()
+-- Eigene Base ermitteln
+local function getPlayerBasePosition()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        local name = obj.Name:lower()
+        if (name:find("base") or name:find("plot") or name:find("home")) and (obj:IsA("BasePart") or obj:IsA("Model")) then
+            if name:find(LocalPlayer.Name:lower()) then
+                if obj:IsA("BasePart") then return obj.Position else return (obj.PrimaryPart and obj.PrimaryPart.Position or obj:FindFirstChildWhichIsA("BasePart").Position) end
+            end
         end
     end
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        return char.HumanoidRootPart.Position
+    end
+    return Vector3.new(0, 5, 0)
+end
+
+local function registerEggItem(obj)
+    if not isRealCollectibleEggBackend(obj) then return end
+    if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
+
+    local itemFrame = Instance.new("Frame")
+    itemFrame.Name = obj.Name .. "_" .. tostring(obj)
+    itemFrame.Size = UDim2.new(1, -10, 0, 50)
+    itemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    itemFrame.BorderSizePixel = 0
+    itemFrame.Parent = FeedScroll
+    
+    local iCorner = Instance.new("UICorner")
+    iCorner.CornerRadius = UDim.new(0, 6)
+    iCorner.Parent = itemFrame
+
+    -- Icon
+    local icon = Instance.new("ImageLabel")
+    icon.Size = UDim2.new(0, 36, 0, 36)
+    icon.Position = UDim2.new(0, 7, 0, 7)
+    icon.BackgroundTransparency = 1
+    icon.Image = "rbxassetid://6031094678"
+    icon.Parent = itemFrame
+    
+    local t = Instance.new("TextLabel")
+    t.Size = UDim2.new(0, 150, 0, 20)
+    t.Position = UDim2.new(0, 50, 0, 8)
+    t.BackgroundTransparency = 1
+    t.Text = obj.Name
+    t.TextColor3 = Color3.fromRGB(241, 196, 15)
+    t.TextSize = 12
+    t.Font = Enum.Font.GothamBold
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    t.Parent = itemFrame
+    
+    local sub = Instance.new("TextLabel")
+    sub.Size = UDim2.new(0, 150, 0, 15)
+    sub.Position = UDim2.new(0, 50, 0, 26)
+    sub.BackgroundTransparency = 1
+    sub.Text = "Echtes Welt-Ei"
+    sub.TextColor3 = Color3.fromRGB(150, 150, 150)
+    sub.TextSize = 11
+    sub.Font = Enum.Font.Gotham
+    sub.TextXAlignment = Enum.TextXAlignment.Left
+    sub.Parent = itemFrame
+    
+    -- STEHL Button
+    local stealBtn = Instance.new("TextButton")
+    stealBtn.Size = UDim2.new(0, 50, 0, 28)
+    stealBtn.Position = UDim2.new(1, -115, 0, 11)
+    stealBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    stealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    stealBtn.TextSize = 11
+    stealBtn.Font = Enum.Font.GothamBold
+    stealBtn.Text = "STEHL"
+    stealBtn.Parent = itemFrame
+    
+    local sCorner = Instance.new("UICorner")
+    sCorner.CornerRadius = UDim.new(0, 4)
+    sCorner.Parent = stealBtn
+
+    -- JOIN Button
+    local joinBtn = Instance.new("TextButton")
+    joinBtn.Size = UDim2.new(0, 50, 0, 28)
+    joinBtn.Position = UDim2.new(1, -58, 0, 11)
+    joinBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    joinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    joinBtn.TextSize = 11
+    joinBtn.Font = Enum.Font.GothamBold
+    joinBtn.Text = "JOIN"
+    joinBtn.Parent = itemFrame
+    
+    local jCorner = Instance.new("UICorner")
+    jCorner.CornerRadius = UDim.new(0, 4)
+    jCorner.Parent = joinBtn
+    
+    -- HINGEHEN, PROXIMITY PROMPT AUSLÖSEN UND ZUR BASE ZURÜCKKEHREN
+    stealBtn.Activated:Connect(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
+            local humanoid = char.Humanoid
+            local rootPart = char.HumanoidRootPart
+            
+            local targetPart = nil
+            if obj:IsA("BasePart") then
+                targetPart = obj
+            elseif obj:IsA("Model") then
+                targetPart = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            end
+            
+            if targetPart then
+                -- 1. Exakt zum echten Ei hinlaufen
+                humanoid:MoveTo(targetPart.Position)
+                
+                local conn
+                conn = RunService.Heartbeat:Connect(function()
+                    if not targetPart or not targetPart.Parent then
+                        if conn then conn:Disconnect() end
+                        return
+                    end
+                    
+                    local distance = (rootPart.Position - targetPart.Position).Magnitude
+                    if distance <= 7 then
+                        -- 2. ProximityPrompt direkt auslösen (Backend-Aktion)
+                        pcall(function()
+                            for _, prompt in ipairs(obj:GetDescendants()) do
+                                if prompt:IsA("ProximityPrompt") then
+                                    fireproximityprompt(prompt)
+                                end
+                            end
+                        end)
+                        pcall(function()
+                            if firetouchinterest then
+                                firetouchinterest(rootPart, targetPart, 0)
+                                task.wait(0.05)
+                                firetouchinterest(rootPart, targetPart, 1)
+                            end
+                        end)
+                        
+                        -- 3. Automatisch zurück zur eigenen Base laufen
+                        task.wait(0.2)
+                        local basePos = getPlayerBasePosition()
+                        humanoid:MoveTo(basePos)
+                        
+                        if conn then conn:Disconnect() end
+                    end
+                end)
+            end
+        end
+    end)
+    
+    joinBtn.Activated:Connect(function()
+        pcall(function()
+            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        end)
+    end)
+    
+    obj.AncestryChanged:Connect(function()
+        if not obj.Parent then
+            itemFrame:Destroy()
+        end
+    end)
+end
+
+-- Globaler Scan über den Workspace
+for _, obj in ipairs(Workspace:GetDescendants()) do
+    pcall(function() registerEggItem(obj) end)
+end
+
+Workspace.DescendantAdded:Connect(function(obj)
+    task.wait(0.1)
+    pcall(function() registerEggItem(obj) end)
 end)
 
--- Erster Scan
-scanEggs()
-
-print("[EggFinderPro] Erfolgreich gestartet")
+print("CeboFinder Backend-Prompt Filter erfolgreich geladen!")
