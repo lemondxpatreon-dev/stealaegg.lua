@@ -1,466 +1,331 @@
--- =====================================================================
--- CeboFinder PRO - Mobile Master Engine (100% Crashfree & Fully Functional)
--- Game: Steal an Egg (Game ID: 10563114921)
--- =====================================================================
+-- CeboFinder-style mobile menu for YOUR OWN Roblox experience.
+-- Put this in a LocalScript (StarterPlayer > StarterPlayerScripts).
+-- Upload each pet picture as a Roblox image/decal, then replace the image IDs below.
+-- This is a UI template: connect Join/Force buttons to your own server-side game systems.
 
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
-local TeleportService = game:GetService("TeleportService")
-local CoreGui = game:GetService("CoreGui")
-local LocalPlayer = Players.LocalPlayer
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- 1. Absolut sicherer UI-Container (Verhindert Abstürze auf Mobile-Exekutoren)
-pcall(function()
-    if CoreGui:FindFirstChild("CeboFinderMobile") then CoreGui.CeboFinderMobile:Destroy() end
-    if LocalPlayer.PlayerGui:FindFirstChild("CeboFinderMobile") then LocalPlayer.PlayerGui.CeboFinderMobile:Destroy() end
-end)
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CeboFinderMobile"
-ScreenGui.ResetOnSpawn = false
-
-local successParent = pcall(function()
-    ScreenGui.Parent = CoreGui
-end)
-if not successParent then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-end
-
--- Hauptfenster mit Start-Animation
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 0, 0, 0)
-MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
-MainFrame.BorderSizePixel = 0
-MainFrame.ClipsDescendants = true
-MainFrame.Visible = true
-MainFrame.Parent = ScreenGui
-
-TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 560, 0, 360),
-    Position = UDim2.new(0.5, -280, 0.5, -180)
-}):Play()
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
-MainCorner.Parent = MainFrame
-
--- Titel & Status
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(0, 200, 0, 35)
-TitleLabel.Position = UDim2.new(0, 15, 0, 10)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "CeboFinder PRO"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 18
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Parent = MainFrame
-
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0, 320, 0, 20)
-StatusLabel.Position = UDim2.new(0, 15, 0, 32)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Alle 20+ Features & Engine Aktiv"
-StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
-StatusLabel.TextSize = 11
-StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.Parent = MainFrame
-
--- Verschiebbarer Floating Button (CF)
-local FloatingBtn = Instance.new("TextButton")
-FloatingBtn.Size = UDim2.new(0, 50, 0, 50)
-FloatingBtn.Position = UDim2.new(0, 50, 0, 50)
-FloatingBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-FloatingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-FloatingBtn.TextSize = 14
-FloatingBtn.Font = Enum.Font.GothamBold
-FloatingBtn.Text = "CF"
-FloatingBtn.Visible = false
-FloatingBtn.Parent = ScreenGui
-
-local FCorner = Instance.new("UICorner") FCorner.CornerRadius = UDim.new(1, 0) FCorner.Parent = FloatingBtn
-
-local dragging, dragInput, dragStart, startPos
-FloatingBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true dragStart = input.Position startPos = FloatingBtn.Position
-    end
-end)
-FloatingBtn.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        FloatingBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
--- Seiten Container (Tabs)
-local PagesContainer = Instance.new("Folder")
-PagesContainer.Parent = MainFrame
-
-local function createPage()
-    local page = Instance.new("ScrollingFrame")
-    page.Size = UDim2.new(0, 390, 0, 275)
-    page.Position = UDim2.new(0, 150, 0, 55)
-    page.BackgroundTransparency = 1
-    page.CanvasSize = UDim2.new(0, 0, 0, 0)
-    page.ScrollBarThickness = 4
-    page.Visible = false
-    page.Parent = PagesContainer
-    local layout = Instance.new("UIListLayout")
-    layout.Parent = page layout.SortOrder = Enum.SortOrder.LayoutOrder layout.Padding = UDim.new(0, 6)
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
-    end)
-    return page
-end
-
-local LogsPage = createPage() LogsPage.Visible = true
-local HistoryPage = createPage()
-local TeleportsPage = createPage()
-local SettingsPage = createPage()
-
--- Button Hover- & Klick-Animationen
-local function applyButtonAnimation(btn)
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(55, 55, 55)}):Play()
-    end)
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(35, 35, 35)}):Play()
-    end)
-end
-
--- =====================================================================
--- ECHTE AKTIVE IMPLEMENTIERUNG DER 20+ FUNKTIONEN
--- =====================================================================
-local featureStates = {
-    ["Auto-Base Return"] = true,
-    ["Instant Prompt Steal"] = true,
-    ["Egg ESP Highlight"] = true,
-    ["Player ESP Box"] = false,
-    ["Infinite Jump"] = false,
-    ["Noclip Mode"] = false,
-    ["Anti-AFK Kick"] = true,
-    ["Fullbright Lighting"] = false,
-    ["Speed Boost (32)"] = false,
-    ["High Jump (100)"] = false,
-    ["Hitbox Expander"] = false,
-    ["Night Mode Sky"] = false,
-    ["FPS Booster (Low Poly)"] = false,
-    ["Auto-Collect Coins"] = false,
-    ["Godmode Monitor"] = true,
+-- Replace these example entries with pets that exist in YOUR game.
+-- image must be a Roblox image asset ID, e.g. "rbxassetid://1234567890".
+local PETS = {
+    {name = "Starry Fox", rate = "$18.4B/s", rarity = "Secret", age = "7/4 · 0:11", image = "rbxassetid://0"},
+    {name = "Starry Fox", rate = "$6.1B/s", rarity = "Secret", age = "7/7 · 0:12", image = "rbxassetid://0"},
+    {name = "Starry Fox", rate = "$2.9B/s", rarity = "Secret", age = "7/5 · 0:11", image = "rbxassetid://0"},
+    {name = "Starry Fox", rate = "$2.4B/s", rarity = "Secret", age = "7/2 · 0:10", image = "rbxassetid://0"},
+    {name = "Starry Fox", rate = "$1.8B/s", rarity = "Secret", age = "7/5 · 0:10", image = "rbxassetid://0"},
+    {name = "Starry Fox", rate = "$1.4B/s", rarity = "Secret", age = "7/2 · 0:09", image = "rbxassetid://0"},
 }
 
-local function addSettingButton(name, isToggle, action)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 40)
-    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    btn.TextColor3 = isToggle and (featureStates[name] and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)) or Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 12
-    btn.Font = Enum.Font.GothamMedium
-    btn.Text = isToggle and ("■ " .. name .. ": " .. (featureStates[name] and "ON" else "OFF")) or ("⚡ " .. name)
-    btn.Parent = SettingsPage
-    
-    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 6) c.Parent = btn
-    applyButtonAnimation(btn)
-    
-    btn.Activated:Connect(function()
-        if isToggle then
-            featureStates[name] = not featureStates[name]
-            local state = featureStates[name]
-            btn.Text = "■ " .. name .. ": " .. (state and "ON" else "OFF")
-            btn.TextColor3 = state and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        else
-            if action then action() end
-            btn.TextColor3 = Color3.fromRGB(241, 196, 15)
-            task.wait(0.3)
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        end
-    end)
-end
-
--- Alle 20+ Funktionen aufbauen
-addSettingButton("Auto-Base Return", true)
-addSettingButton("Instant Prompt Steal", true)
-addSettingButton("Egg ESP Highlight", true)
-addSettingButton("Player ESP Box", true)
-addSettingButton("Infinite Jump", true)
-addSettingButton("Noclip Mode", true)
-addSettingButton("Anti-AFK Kick", true)
-addSettingButton("Fullbright Lighting", true)
-addSettingButton("Speed Boost (32)", true)
-addSettingButton("High Jump (100)", true)
-addSettingButton("Hitbox Expander", true)
-addSettingButton("Night Mode Sky", true)
-addSettingButton("FPS Booster (Low Poly)", true)
-addSettingButton("Auto-Collect Coins", true)
-addSettingButton("Godmode Monitor", true)
-
-addSettingButton("Server Hop Fast", false, function()
-    pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
-end)
-addSettingButton("Rejoin Server", false, function()
-    pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end)
-end)
-addSettingButton("Teleport to Safe Zone", false, function()
-    pcall(function()
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            char.HumanoidRootPart.CFrame = CFrame.new(0, 15, 0)
-        end
-    end)
-end)
-addSettingButton("Clear Lag / Debris", false, function()
-    pcall(function()
-        for _, v in ipairs(Workspace:GetChildren()) do
-            if v:IsA("Part") and not v.Anchored then v:Destroy() end
-        end
-    end)
-end)
-
--- Hintergrund-Loops für aktive Funktionen (Walkspeed, Noclip, ESP, etc.)
-RunService.RenderStepped:Connect(function()
-    pcall(function()
-        local char = LocalPlayer.Character
-        if not char then return end
-        
-        if featureStates["Speed Boost (32)"] then
-            if char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = 32 end
-        else
-            if char:FindFirstChild("Humanoid") and char.Humanoid.WalkSpeed == 32 then char.Humanoid.WalkSpeed = 16 end
-        end
-        
-        if featureStates["High Jump (100)"] then
-            if char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = 100 end
-        end
-        
-        if featureStates["Noclip Mode"] then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = false end
-            end
-        end
-        
-        if featureStates["Fullbright Lighting"] then
-            Lighting.Brightness = 2 Lighting.ClockTime = 12 Lighting.FogEnd = 100000
-        end
-        
-        if featureStates["Night Mode Sky"] then
-            Lighting.ClockTime = 0
-        end
-        
-        if featureStates["Hitbox Expander"] then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                    p.Character.HumanoidRootPart.Size = Vector3.new(5, 5, 5)
-                    p.Character.HumanoidRootPart.Transparency = 0.7
-                end
-            end
-        end
-    end)
-end)
-
-UserInputService.JumpRequest:Connect(function()
-    pcall(function()
-        if featureStates["Infinite Jump"] then
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("Humanoid") then
-                char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end)
-end)
-
-pcall(function()
-    LocalPlayer.Idled:Connect(function()
-        if featureStates["Anti-AFK Kick"] then
-            local vu = game:GetService("VirtualUser")
-            vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-            task.wait(1)
-            vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-        end
-    end)
-end)
-
--- Sidebar Navigation
-local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 130, 0, 275)
-Sidebar.Position = UDim2.new(0, 15, 0, 55)
-Sidebar.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = MainFrame
-
-local SidebarCorner = Instance.new("UICorner") SidebarCorner.CornerRadius = UDim.new(0, 6) SidebarCorner.Parent = Sidebar
-
-local tabButtons = {}
-local tabs = {"Logs", "History", "Teleports", "Settings", "Hide"}
-for i, tabName in ipairs(tabs) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 42)
-    btn.Position = UDim2.new(0, 5, 0, (i - 1) * 46 + 8)
-    btn.BackgroundColor3 = (tabName == "Logs") and Color3.fromRGB(50, 50, 50) or Color3.fromRGB(35, 35, 35)
-    btn.TextColor3 = Color3.fromRGB(220, 220, 220)
-    btn.TextSize = 13
-    btn.Font = Enum.Font.GothamMedium
-    btn.Text = tabName
-    btn.Parent = Sidebar
-    
-    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 4) c.Parent = btn
-    applyButtonAnimation(btn)
-    tabButtons[tabName] = btn
-    
-    btn.Activated:Connect(function()
-        if tabName == "Hide" then
-            TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 0, 0, 0)}):Play()
-            task.wait(0.3)
-            MainFrame.Visible = false
-            FloatingBtn.Visible = true
-        else
-            for name, b in pairs(tabButtons) do
-                if name ~= "Hide" then b.BackgroundColor3 = Color3.fromRGB(35, 35, 35) end
-            end
-            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-            LogsPage.Visible = (tabName == "Logs")
-            HistoryPage.Visible = (tabName == "History")
-            TeleportsPage.Visible = (tabName == "Teleports")
-            SettingsPage.Visible = (tabName == "Settings")
-        end
-    end)
-end
-
-FloatingBtn.Activated:Connect(function()
-    MainFrame.Visible = true
-    MainFrame.Size = UDim2.new(0, 0, 0, 0)
-    MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 560, 0, 360),
-        Position = UDim2.new(0.5, -280, 0.5, -180)
-    }):Play()
-    FloatingBtn.Visible = false
-end)
-
--- Teleport-Ziele
-local tpLocations = {
-    {"Spawn Base", Vector3.new(0, 5, 0)},
-    {"Forest Zone", Vector3.new(160, 5, 120)},
-    {"Desert Zone", Vector3.new(-160, 5, 220)},
-    {"Volcano Zone", Vector3.new(320, 5, -220)},
-    {"Ocean Zone", Vector3.new(0, 5, 420)}
+local COLORS = {
+    panel = Color3.fromRGB(15, 18, 15),
+    card = Color3.fromRGB(20, 20, 20),
+    stroke = Color3.fromRGB(110, 110, 110),
+    white = Color3.fromRGB(245, 245, 245),
+    muted = Color3.fromRGB(170, 170, 170),
+    green = Color3.fromRGB(90, 210, 60),
 }
 
-for _, loc in ipairs(tpLocations) do
-    local tpBtn = Instance.new("TextButton")
-    tpBtn.Size = UDim2.new(1, -10, 0, 40)
-    tpBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    tpBtn.TextSize = 13
-    tpBtn.Font = Enum.Font.GothamMedium
-    tpBtn.Text = "Teleport: " .. loc[1]
-    tpBtn.Parent = TeleportsPage
-    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 6) c.Parent = tpBtn
-    applyButtonAnimation(tpBtn)
-    
-    tpBtn.Activated:Connect(function()
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                char.HumanoidRootPart.CFrame = CFrame.new(loc[2])
-            end
-        end)
+local gui = Instance.new("ScreenGui")
+gui.Name = "CeboFinderMobile"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = playerGui
+
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.Position = UDim2.fromScale(0.5, 0.5)
+main.Size = UDim2.new(0.96, 0, 0.82, 0)
+main.BackgroundColor3 = COLORS.panel
+main.BackgroundTransparency = 0.04
+main.BorderSizePixel = 0
+main.Parent = gui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 16)
+local mainStroke = Instance.new("UIStroke", main)
+mainStroke.Color = COLORS.stroke
+mainStroke.Thickness = 2
+
+local scale = Instance.new("UIScale")
+scale.Scale = 1
+scale.Parent = main
+
+local sidebar = Instance.new("Frame")
+sidebar.Name = "Sidebar"
+sidebar.Size = UDim2.new(0.19, 0, 1, 0)
+sidebar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+sidebar.BorderSizePixel = 0
+sidebar.Parent = main
+
+local brand = Instance.new("TextLabel")
+brand.Size = UDim2.new(1, -12, 0, 38)
+brand.Position = UDim2.new(0, 8, 0, 8)
+brand.BackgroundTransparency = 1
+brand.Text = "CeboFinder"
+brand.TextColor3 = COLORS.white
+brand.TextScaled = true
+brand.Font = Enum.Font.GothamBold
+brand.Parent = sidebar
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -12, 0, 26)
+status.Position = UDim2.new(0, 8, 0, 48)
+status.BackgroundTransparency = 1
+status.Text = "●  Connected"
+status.TextColor3 = COLORS.white
+status.TextScaled = true
+status.Font = Enum.Font.Gotham
+status.Parent = sidebar
+
+local hide = Instance.new("TextButton")
+hide.Size = UDim2.new(1, -18, 0, 38)
+hide.Position = UDim2.new(0, 9, 1, -48)
+hide.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+hide.Text = "Hide"
+hide.TextColor3 = COLORS.white
+hide.TextScaled = true
+hide.Font = Enum.Font.GothamBold
+hide.Parent = sidebar
+Instance.new("UICorner", hide).CornerRadius = UDim.new(0, 9)
+hide.Activated:Connect(function()
+    main.Visible = false
+end)
+
+local reopen = Instance.new("TextButton")
+reopen.Name = "ReopenMenu"
+reopen.Size = UDim2.fromOffset(76, 42)
+reopen.Position = UDim2.new(0, 12, 0.5, -21)
+reopen.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+reopen.Text = "OPEN"
+reopen.TextColor3 = COLORS.white
+reopen.TextScaled = true
+reopen.Font = Enum.Font.GothamBold
+reopen.Visible = false
+reopen.Parent = gui
+Instance.new("UICorner", reopen).CornerRadius = UDim.new(0, 10)
+reopen.Activated:Connect(function()
+    main.Visible = true
+    reopen.Visible = false
+end)
+hide.Activated:Connect(function()
+    main.Visible = false
+    reopen.Visible = true
+end)
+
+local content = Instance.new("Frame")
+content.Name = "Content"
+content.Position = UDim2.new(0.20, 0, 0, 0)
+content.Size = UDim2.new(0.80, -8, 1, 0)
+content.BackgroundTransparency = 1
+content.Parent = main
+
+local function makeToggle(text, xScale, widthScale)
+    local holder = Instance.new("Frame")
+    holder.Position = UDim2.new(xScale, 0, 0, 10)
+    holder.Size = UDim2.new(widthScale, -8, 0, 48)
+    holder.BackgroundColor3 = Color3.fromRGB(20, 22, 20)
+    holder.Parent = content
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 12)
+    local border = Instance.new("UIStroke", holder)
+    border.Color = COLORS.stroke
+    border.Thickness = 1.5
+
+    local label = Instance.new("TextLabel")
+    label.Position = UDim2.new(0, 12, 0, 0)
+    label.Size = UDim2.new(0.62, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = COLORS.white
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamSemibold
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = holder
+
+    local toggle = Instance.new("TextButton")
+    toggle.AnchorPoint = Vector2.new(1, 0.5)
+    toggle.Position = UDim2.new(1, -8, 0.5, 0)
+    toggle.Size = UDim2.new(0, 48, 0, 27)
+    toggle.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+    toggle.Text = "●"
+    toggle.TextColor3 = COLORS.white
+    toggle.TextScaled = true
+    toggle.Font = Enum.Font.GothamBold
+    toggle.Parent = holder
+    Instance.new("UICorner", toggle).CornerRadius = UDim.new(1, 0)
+
+    local enabled = false
+    toggle.Activated:Connect(function()
+        enabled = not enabled
+        toggle.BackgroundColor3 = enabled and COLORS.green or Color3.fromRGB(55, 55, 55)
+        toggle.Text = enabled and "●" or "●"
+        label.Text = text .. (enabled and "  ON" or "  OFF")
+        -- UI-only toggles: attach your own game logic here.
+    end)
+    return holder
+end
+
+makeToggle("Auto-Join", 0, 0.5)
+makeToggle("Auto-Force", 0.5, 0.5)
+
+local feedTitle = Instance.new("TextLabel")
+feedTitle.Position = UDim2.new(0, 0, 0, 64)
+feedTitle.Size = UDim2.new(1, -4, 0, 30)
+feedTitle.BackgroundTransparency = 1
+feedTitle.Text = "LIVE FEED                                  " .. tostring(#PETS) .. " detected"
+feedTitle.TextColor3 = COLORS.muted
+feedTitle.TextScaled = true
+feedTitle.Font = Enum.Font.GothamSemibold
+feedTitle.TextXAlignment = Enum.TextXAlignment.Left
+feedTitle.Parent = content
+
+local clear = Instance.new("TextButton")
+clear.AnchorPoint = Vector2.new(1, 0)
+clear.Position = UDim2.new(1, -4, 0, 66)
+clear.Size = UDim2.new(0, 54, 0, 25)
+clear.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+clear.Text = "Clear"
+clear.TextColor3 = COLORS.white
+clear.TextScaled = true
+clear.Font = Enum.Font.Gotham
+clear.Parent = content
+Instance.new("UICorner", clear).CornerRadius = UDim.new(0, 7)
+
+local feed = Instance.new("ScrollingFrame")
+feed.Name = "LiveFeed"
+feed.Position = UDim2.new(0, 0, 0, 100)
+feed.Size = UDim2.new(1, -4, 1, -112)
+feed.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+feed.BorderSizePixel = 0
+feed.ScrollBarThickness = 5
+feed.ScrollBarImageColor3 = COLORS.muted
+feed.CanvasSize = UDim2.new(0, 0, 0, 0)
+feed.AutomaticCanvasSize = Enum.AutomaticSize.Y
+feed.Parent = content
+Instance.new("UICorner", feed).CornerRadius = UDim.new(0, 12)
+local feedStroke = Instance.new("UIStroke", feed)
+feedStroke.Color = Color3.fromRGB(75, 75, 75)
+feedStroke.Thickness = 1.5
+
+local list = Instance.new("UIListLayout")
+list.Padding = UDim.new(0, 7)
+list.SortOrder = Enum.SortOrder.LayoutOrder
+list.Parent = feed
+
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 8)
+padding.PaddingBottom = UDim.new(0, 8)
+padding.PaddingLeft = UDim.new(0, 8)
+padding.PaddingRight = UDim.new(0, 8)
+padding.Parent = feed
+
+local function addPetCard(pet, index)
+    local card = Instance.new("Frame")
+    card.Name = "PetCard" .. index
+    card.Size = UDim2.new(1, -6, 0, 76)
+    card.BackgroundColor3 = COLORS.card
+    card.BorderSizePixel = 0
+    card.LayoutOrder = index
+    card.Parent = feed
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+    local edge = Instance.new("UIStroke", card)
+    edge.Color = COLORS.stroke
+    edge.Thickness = 1.4
+
+    local stripe = Instance.new("Frame")
+    stripe.Position = UDim2.new(0, 7, 0, 8)
+    stripe.Size = UDim2.new(0, 4, 1, -16)
+    stripe.BackgroundColor3 = COLORS.white
+    stripe.BorderSizePixel = 0
+    stripe.Parent = card
+    Instance.new("UICorner", stripe).CornerRadius = UDim.new(1, 0)
+
+    -- The pet is displayed as a PICTURE in an ImageLabel, not as a 3D object or mesh.
+    local picture = Instance.new("ImageLabel")
+    picture.Name = "PetPicture"
+    picture.Position = UDim2.new(0, 18, 0.5, -22)
+    picture.Size = UDim2.fromOffset(44, 44)
+    picture.BackgroundTransparency = 1
+    picture.ScaleType = Enum.ScaleType.Fit
+    picture.Image = pet.image
+    picture.Parent = card
+
+    local name = Instance.new("TextLabel")
+    name.Position = UDim2.new(0, 68, 0, 8)
+    name.Size = UDim2.new(1, -220, 0, 32)
+    name.BackgroundTransparency = 1
+    name.Text = pet.name .. "  [ " .. pet.rate .. " ]"
+    name.TextColor3 = COLORS.white
+    name.TextScaled = true
+    name.Font = Enum.Font.GothamBold
+    name.TextXAlignment = Enum.TextXAlignment.Left
+    name.Parent = card
+
+    local details = Instance.new("TextLabel")
+    details.Position = UDim2.new(0, 68, 0, 40)
+    details.Size = UDim2.new(1, -220, 0, 22)
+    details.BackgroundTransparency = 1
+    details.Text = pet.age .. " · " .. pet.rarity
+    details.TextColor3 = COLORS.muted
+    details.TextScaled = true
+    details.Font = Enum.Font.Gotham
+    details.TextXAlignment = Enum.TextXAlignment.Left
+    details.Parent = card
+
+    local join = Instance.new("TextButton")
+    join.AnchorPoint = Vector2.new(1, 0.5)
+    join.Position = UDim2.new(1, -72, 0.5, 0)
+    join.Size = UDim2.new(0, 58, 0, 32)
+    join.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    join.Text = "VIEW"
+    join.TextColor3 = COLORS.white
+    join.TextScaled = true
+    join.Font = Enum.Font.GothamBold
+    join.Parent = card
+    Instance.new("UICorner", join).CornerRadius = UDim.new(0, 8)
+    local joinStroke = Instance.new("UIStroke", join)
+    joinStroke.Color = COLORS.stroke
+    join.Activated:Connect(function()
+        status.Text = "Selected: " .. pet.name
+        -- Connect this to your own experience's legitimate view/teleport logic.
+    end)
+
+    local force = Instance.new("TextButton")
+    force.AnchorPoint = Vector2.new(1, 0.5)
+    force.Position = UDim2.new(1, -8, 0.5, 0)
+    force.Size = UDim2.new(0, 56, 0, 32)
+    force.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    force.Text = "TRACK"
+    force.TextColor3 = COLORS.white
+    force.TextScaled = true
+    force.Font = Enum.Font.GothamBold
+    force.Parent = card
+    Instance.new("UICorner", force).CornerRadius = UDim.new(0, 8)
+    force.Activated:Connect(function()
+        status.Text = "Tracking: " .. pet.name
+        -- UI-only example; connect to your own game's tracking feature.
     end)
 end
 
--- History Loggen
-local function addHistoryItem(eggName)
-    local hFrame = Instance.new("Frame") hFrame.Size = UDim2.new(1, -10, 0, 45) hFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35) hFrame.Parent = HistoryPage
-    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 6) c.Parent = hFrame
-    local ht = Instance.new("TextLabel") ht.Size = UDim2.new(1, -15, 1, 0) ht.Position = UDim2.new(0, 10, 0, 0) ht.BackgroundTransparency = 1 ht.Text = "Erfolgreich gestehlt: " .. eggName ht.TextColor3 = Color3.fromRGB(46, 204, 113) ht.TextSize = 12 ht.Font = Enum.Font.GothamBold ht.TextXAlignment = Enum.TextXAlignment.Left ht.Parent = hFrame
-end
-
--- =====================================================================
--- FEHLERFREIER EIER-FILTER (Anti-Müll & Prompt-Check)
--- =====================================================================
-local function isStrictRealEgg(obj)
-    if not obj or not obj.Parent then return false end
-    local name = obj.Name:lower()
-    
-    if name:find("models for") or name:find("ceiling") or name:find("trim") or name:find("wall") or name:find("floor") or name:find("shop") or name:find("store") or name:find("portal") or name:find("bounds") or name:find("spot") or name:find("internal") or name:find("holder") or name:find("spawn") or name:find("zone") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("pipe") or name:find("light") or name:find("rock") or name:find("section") or name:find("panel") or name:find("interior") or name:find("point") then
-        return false
-    end
-    
-    local hasStealPrompt = false
-    local promptObj = nil
-    for _, desc in ipairs(obj:GetDescendants()) do
-        if desc:IsA("ProximityPrompt") then
-            local action = desc.ActionText:lower()
-            if action:find("steal") or action:find("stehlen") then
-                hasStealPrompt = true
-                promptObj = desc
-                break
-            end
+local function renderPets()
+    for _, child in ipairs(feed:GetChildren()) do
+        if child:IsA("Frame") and child.Name:match("^PetCard") then
+            child:Destroy()
         end
     end
-    
-    if not hasStealPrompt then return false end
-    if not (name:find("egg") or name:find("ei")) then return false end
-    
-    return true, promptObj
+    for index, pet in ipairs(PETS) do
+        addPetCard(pet, index)
+    end
+    feedTitle.Text = "LIVE FEED                                  " .. tostring(#PETS) .. " detected"
 end
 
-local function getPlayerBasePosition()
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        local name = obj.Name:lower()
-        if (name:find("base") or name:find("plot") or name:find("home")) and (obj:IsA("BasePart") or obj:IsA("Model")) then
-            if name:find(LocalPlayer.Name:lower()) then
-                if obj:IsA("BasePart") then return obj.Position else return (obj.PrimaryPart and obj.PrimaryPart.Position or obj:FindFirstChildWhichIsA("BasePart").Position) end
-            end
+clear.Activated:Connect(function()
+    for _, child in ipairs(feed:GetChildren()) do
+        if child:IsA("Frame") and child.Name:match("^PetCard") then
+            child:Destroy()
         end
     end
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then return char.HumanoidRootPart.Position end
-    return Vector3.new(0, 5, 0)
-end
+    feedTitle.Text = "LIVE FEED                                  0 detected"
+end)
 
-local function registerEggItem(obj)
-    local isEgg, promptObj = isStrictRealEgg(obj)
-    if not isEgg then return end
-    if LogsPage:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
-
-    local itemFrame = Instance.new("Frame")
-    itemFrame.Name = obj.Name .. "_" .. tostring(obj)
-    itemFrame.Size = UDim2.new(1, -10, 0, 50)
-    itemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    itemFrame.BorderSizePixel = 0
-    itemFrame.Parent = LogsPage
-    
-    local iCorner = Instance.new("UICorner") iCorner.CornerRadius = UDim.new(0, 6) iCorner.Parent = itemFrame
-    
-    local icon = Instance.new("ImageLabel")
-    icon.Size = UDim2.new(0, 36, 0, 36) icon.Position = UDim2.new(0, 7, 0, 7) icon.BackgroundTransparency = 1 icon.Image = "rbxassetid://6031094678" icon.Parent = itemFrame
-    
-    local t = Instance.new("TextLabel")
-    t.Size = UDim2.new(0, 160, 0, 20) t.Position = UDim2.new(0, 50, 0, 8) t.BackgroundTransparency = 1 t.Text = obj.Name t.TextColor3 = Color3.fromRGB(241, 196, 15) t.TextSize = 12 t.Font = Enum.Font.GothamBold t.TextXAlignment = Enum.TextXAlignment.Left t.Parent = itemFrame
-    
-    local sub = Instance.new("TextLabel")
-    sub.Size = UDim2.new(0, 160, 0, 15) sub.Position = UDim2.new(0, 50, 0, 26) sub.BackgroundTransparency = 1 sub.Text = "Verifiziertes Live-Ei" sub.TextColor3 = Color3.fromRGB(46, 204, 113) sub.TextSize = 11 sub.Font = Enum.Font.Gotham sub.TextXAlignment = Enum.TextXAlignment.Left sub.Parent = itemFrame
-    
-    local stealBtn = Instance.new("TextButton")
-    stealBtn.Size = UDim2.new(0, 50, 0, 28) stealBtn.Position = UDim2.new(1, -115, 0, 11) stealBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113) stealBtn.TextColor3 = Color3.fromRGB(255, 255, 255) stealBtn.TextSize = 11 stealBtn.Font = Enum.Font.GothamBold stealBtn.Text = "STEHL" stealBtn.Parent = itemFrame
-    local sCorner = Instance.new("UICorner") sCorner.CornerRadius = UDim.new(0, 4) sCorner.Parent = stealBtn
-    applyButtonAnimation(stealBtn)
-
-    local joinBtn = Instance.new("TextButton")
-    joinBtn.Size = UDim2.new(0, 50, 0, 28) joinBtn.Position = UDim2.new(1, -58, 0, 11) joinBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50) joinBtn.TextColor3 = Color3.fromRGB(255, 255, 255) joinBtn.TextSize = 11 joinBtn.Font = Enum.Font.GothamBold joinBtn.Text = "JOIN" joinBtn.Parent = itemFrame
-    local jCorner = Instance.new("UICorner") jCorner.CornerRadius = UDim.new(0, 4) jCorner.Parent = joinBtn
-    applyButtonAnimation(joinBtn)
-    
-    stealBtn.Activated:Connect(function()
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("
+renderPets()
