@@ -1,5 +1,6 @@
 -- =====================================================================
--- CeboFinder - Eigene Mod für Steal an Egg (Game ID: 10563114921)
+-- CeboFinder PRO - Vollständiges Hub mit funktionierenden Tabs (Logs, History, Users, Settings, Hide)
+-- Game: Steal an Egg (10563114921)
 -- =====================================================================
 
 local CoreGui = game:GetService("CoreGui")
@@ -47,10 +48,10 @@ TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = MainFrame
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0, 240, 0, 20)
+StatusLabel.Size = UDim2.new(0, 260, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ CeboFinder Custom Mod Active"
+StatusLabel.Text = "■ Live Egg Scanner & Tabs Active"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
@@ -93,7 +94,114 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Sidebar
+-- Container für die verschiedenen Tabs / Seiten
+local PagesContainer = Instance.new("Folder")
+PagesContainer.Name = "PagesContainer"
+PagesContainer.Parent = MainFrame
+
+-- 1. Logs Page (Egg Feed)
+local LogsPage = Instance.new("ScrollingFrame")
+LogsPage.Name = "LogsPage"
+LogsPage.Size = UDim2.new(0, 365, 0, 250)
+LogsPage.Position = UDim2.new(0, 140, 0, 55)
+LogsPage.BackgroundTransparency = 1
+LogsPage.CanvasSize = UDim2.new(0, 0, 0, 0)
+LogsPage.ScrollBarThickness = 4
+LogsPage.Visible = true
+LogsPage.Parent = PagesContainer
+
+local LogsLayout = Instance.new("UIListLayout")
+LogsLayout.Parent = LogsPage
+LogsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+LogsLayout.Padding = UDim.new(0, 6)
+
+LogsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    LogsPage.CanvasSize = UDim2.new(0, 0, 0, LogsLayout.AbsoluteContentSize.Y)
+end)
+
+-- 2. History Page
+local HistoryPage = Instance.new("ScrollingFrame")
+HistoryPage.Name = "HistoryPage"
+HistoryPage.Size = UDim2.new(0, 365, 0, 250)
+HistoryPage.Position = UDim2.new(0, 140, 0, 55)
+HistoryPage.BackgroundTransparency = 1
+HistoryPage.CanvasSize = UDim2.new(0, 0, 0, 0)
+HistoryPage.ScrollBarThickness = 4
+HistoryPage.Visible = false
+HistoryPage.Parent = PagesContainer
+
+local HistoryLayout = Instance.new("UIListLayout")
+HistoryLayout.Parent = HistoryPage
+HistoryLayout.SortOrder = Enum.SortOrder.LayoutOrder
+HistoryLayout.Padding = UDim.new(0, 6)
+
+HistoryLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    HistoryPage.CanvasSize = UDim2.new(0, 0, 0, HistoryLayout.AbsoluteContentSize.Y)
+end)
+
+-- 3. Users Page (Player List)
+local UsersPage = Instance.new("ScrollingFrame")
+UsersPage.Name = "UsersPage"
+UsersPage.Size = UDim2.new(0, 365, 0, 250)
+UsersPage.Position = UDim2.new(0, 140, 0, 55)
+UsersPage.BackgroundTransparency = 1
+UsersPage.CanvasSize = UDim2.new(0, 0, 0, 0)
+UsersPage.ScrollBarThickness = 4
+UsersPage.Visible = false
+UsersPage.Parent = PagesContainer
+
+local UsersLayout = Instance.new("UIListLayout")
+UsersLayout.Parent = UsersPage
+UsersLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UsersLayout.Padding = UDim.new(0, 6)
+
+UsersLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    UsersPage.CanvasSize = UDim2.new(0, 0, 0, UsersLayout.AbsoluteContentSize.Y)
+end)
+
+-- 4. Settings Page
+local SettingsPage = Instance.new("Frame")
+SettingsPage.Name = "SettingsPage"
+SettingsPage.Size = UDim2.new(0, 365, 0, 250)
+SettingsPage.Position = UDim2.new(0, 140, 0, 55)
+SettingsPage.BackgroundTransparency = 1
+SettingsPage.Visible = false
+SettingsPage.Parent = PagesContainer
+
+local settingsLabel = Instance.new("TextLabel")
+settingsLabel.Size = UDim2.new(1, 0, 0, 40)
+settingsLabel.BackgroundTransparency = 1
+settingsLabel.Text = "CeboFinder v2.0 - Einstellungen"
+settingsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+settingsLabel.TextSize = 14
+settingsLabel.Font = Enum.Font.GothamBold
+settingsLabel.TextXAlignment = Enum.TextXAlignment.Left
+settingsLabel.Parent = SettingsPage
+
+local toggleAutoReturn = Instance.new("TextButton")
+toggleAutoReturn.Size = UDim2.new(1, 0, 0, 40)
+toggleAutoReturn.Position = UDim2.new(0, 0, 0, 50)
+toggleAutoReturn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleAutoReturn.TextColor3 = Color3.fromRGB(46, 204, 113)
+toggleAutoReturn.TextSize = 13
+toggleAutoReturn.Font = Enum.Font.GothamMedium
+toggleAutoReturn.Text = "■ Auto-Base Return: ON"
+toggleAutoReturn.Parent = SettingsPage
+local sCorner = Instance.new("UICorner") sCorner.CornerRadius = UDim.new(0, 6) sCorner.Parent = toggleAutoReturn
+
+local autoReturnEnabled = true
+toggleAutoReturn.Activated:Connect(function()
+    autoReturnEnabled = not autoReturnEnabled
+    if autoReturnEnabled then
+        toggleAutoReturn.Text = "■ Auto-Base Return: ON"
+        toggleAutoReturn.TextColor3 = Color3.fromRGB(46, 204, 113)
+    else
+        toggleAutoReturn.Text = "□ Auto-Base Return: OFF"
+        toggleAutoReturn.TextColor3 = Color3.fromRGB(231, 76, 60)
+    end
+end)
+
+-- Sidebar Navigation (Buttons verknüpfen)
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 120, 0, 250)
 Sidebar.Position = UDim2.new(0, 15, 0, 55)
@@ -105,6 +213,7 @@ local SidebarCorner = Instance.new("UICorner")
 SidebarCorner.CornerRadius = UDim.new(0, 6)
 SidebarCorner.Parent = Sidebar
 
+local tabButtons = {}
 local tabs = {"Logs", "History", "Users", "Settings", "Hide"}
 for i, tabName in ipairs(tabs) do
     local btn = Instance.new("TextButton")
@@ -121,10 +230,24 @@ for i, tabName in ipairs(tabs) do
     btnCorner.CornerRadius = UDim.new(0, 4)
     btnCorner.Parent = btn
     
+    tabButtons[tabName] = btn
+    
     btn.Activated:Connect(function()
         if tabName == "Hide" then
             MainFrame.Visible = false
             FloatingBtn.Visible = true
+        else
+            for name, b in pairs(tabButtons) do
+                if name ~= "Hide" then
+                    b.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                end
+            end
+            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            
+            LogsPage.Visible = (tabName == "Logs")
+            HistoryPage.Visible = (tabName == "History")
+            UsersPage.Visible = (tabName == "Users")
+            SettingsPage.Visible = (tabName == "Settings")
         end
     end)
 end
@@ -134,55 +257,70 @@ FloatingBtn.Activated:Connect(function()
     FloatingBtn.Visible = false
 end)
 
--- Feed
-local FeedScroll = Instance.new("ScrollingFrame")
-FeedScroll.Size = UDim2.new(0, 365, 0, 250)
-FeedScroll.Position = UDim2.new(0, 140, 0, 55)
-FeedScroll.BackgroundTransparency = 1
-FeedScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-FeedScroll.ScrollBarThickness = 4
-FeedScroll.Parent = MainFrame
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = FeedScroll
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 6)
-
-UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
-end)
-
--- PRÄZISER BACKEND-FILTER: Schließt Shops, Stores, Wände und Bounds absolut aus
-local function findStealPrompt(obj)
-    for _, desc in ipairs(obj:GetDescendants()) do
-        if desc:IsA("ProximityPrompt") then
-            return desc
-        end
+-- Benutzerliste aktualisieren
+local function updateUsersList()
+    for _, child in ipairs(UsersPage:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
     end
-    return nil
+    for _, p in ipairs(Players:GetPlayers()) do
+        local uFrame = Instance.new("Frame")
+        uFrame.Size = UDim2.new(1, -10, 0, 40)
+        uFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        uFrame.Parent = UsersPage
+        local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 6) c.Parent = uFrame
+        
+        local ut = Instance.new("TextLabel")
+        ut.Size = UDim2.new(1, -15, 1, 0)
+        ut.Position = UDim2.new(0, 10, 0, 0)
+        ut.BackgroundTransparency = 1
+        ut.Text = p.Name .. (p == LocalPlayer and " (Du)" or "")
+        ut.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ut.TextSize = 12
+        ut.Font = Enum.Font.GothamBold
+        ut.TextXAlignment = Enum.TextXAlignment.Left
+        ut.Parent = uFrame
+    end
+end
+Players.PlayerAdded:Connect(updateUsersList)
+Players.PlayerRemoving:Connect(updateUsersList)
+updateUsersList()
+
+-- History hinzufügen
+local function addHistoryItem(eggName)
+    local hFrame = Instance.new("Frame")
+    hFrame.Size = UDim2.new(1, -10, 0, 45)
+    hFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    hFrame.Parent = HistoryPage
+    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 6) c.Parent = hFrame
+    
+    local ht = Instance.new("TextLabel")
+    ht.Size = UDim2.new(1, -15, 1, 0)
+    ht.Position = UDim2.new(0, 10, 0, 0)
+    ht.BackgroundTransparency = 1
+    ht.Text = "Gefunden / Gestehlt: " .. eggName
+    ht.TextColor3 = Color3.fromRGB(46, 204, 113)
+    ht.TextSize = 12
+    ht.Font = Enum.Font.GothamBold
+    ht.TextXAlignment = Enum.TextXAlignment.Left
+    ht.Parent = hFrame
 end
 
-local function isRealCollectibleEgg(obj)
+-- Eier-Filter
+local function isValidEgg(obj)
     if not obj or not obj.Parent then return false end
     local name = obj.Name:lower()
     
-    -- Absolute Sperrliste gegen Shops, Gebäude, Wände und Müll
-    if name:find("shop") or name:find("store") or name:find("portal") or name:find("machine") or name:find("bounds") or name:find("spot") or name:find("fireinternal") or name:find("internal") or name:find("holder") or name:find("spawn") or name:find("zone") or name:find("area") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") or name:find("ceiling") or name:find("pipe") or name:find("light") or name:find("whirlpool") or name:find("rock") or name:find("section") or name:find("panel") or name:find("wall") or name:find("floor") or name:find("interior") or name:find("point") then
+    if name:find("shop") or name:find("store") or name:find("portal") or name:find("bounds") or name:find("spot") or name:find("wall") or name:find("floor") or name:find("interior") then
         return false
     end
     
-    -- Muss ein echtes Ei sein und ein ProximityPrompt besitzen
-    if name:find("egg") or name:find("ei") then
-        local prompt = findStealPrompt(obj)
-        if prompt then
-            return true, prompt
-        end
+    if (name:find("egg") or name:find("ei")) and (obj:IsA("Model") or obj:IsA("BasePart")) then
+        return true
     end
     
-    return false, nil
+    return false
 end
 
--- Eigene Base ermitteln
 local function getPlayerBasePosition()
     for _, obj in ipairs(Workspace:GetDescendants()) do
         local name = obj.Name:lower()
@@ -200,21 +338,20 @@ local function getPlayerBasePosition()
 end
 
 local function registerEggItem(obj)
-    local isEgg, promptObj = isRealCollectibleEgg(obj)
-    if not isEgg then return end
-    if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
+    if not isValidEgg(obj) then return end
+    if LogsPage:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
     local itemFrame = Instance.new("Frame")
     itemFrame.Name = obj.Name .. "_" .. tostring(obj)
     itemFrame.Size = UDim2.new(1, -10, 0, 50)
     itemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
     itemFrame.BorderSizePixel = 0
-    itemFrame.Parent = FeedScroll
+    itemFrame.Parent = LogsPage
     
     local iCorner = Instance.new("UICorner")
     iCorner.CornerRadius = UDim.new(0, 6)
-    iCorner.Parent = itemFrame
-
+    itemFrame.Parent = LogsPage
+    
     local icon = Instance.new("ImageLabel")
     icon.Size = UDim2.new(0, 36, 0, 36)
     icon.Position = UDim2.new(0, 7, 0, 7)
@@ -255,9 +392,7 @@ local function registerEggItem(obj)
     stealBtn.Text = "STEHL"
     stealBtn.Parent = itemFrame
     
-    local sCorner = Instance.new("UICorner")
-    sCorner.CornerRadius = UDim.new(0, 4)
-    sCorner.Parent = stealBtn
+    local sCorner = Instance.new("UICorner") sCorner.CornerRadius = UDim.new(0, 4) sCorner.Parent = stealBtn
 
     -- JOIN Button
     local joinBtn = Instance.new("TextButton")
@@ -270,11 +405,8 @@ local function registerEggItem(obj)
     joinBtn.Text = "JOIN"
     joinBtn.Parent = itemFrame
     
-    local jCorner = Instance.new("UICorner")
-    jCorner.CornerRadius = UDim.new(0, 4)
-    jCorner.Parent = joinBtn
+    local jCorner = Instance.new("UICorner") jCorner.CornerRadius = UDim.new(0, 4) jCorner.Parent = joinBtn
     
-    -- HINGEHEN, PROXIMITY PROMPT AUSLÖSEN UND ZUR BASE ZURÜCKKEHREN
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
@@ -299,10 +431,14 @@ local function registerEggItem(obj)
                     end
                     
                     local distance = (rootPart.Position - targetPart.Position).Magnitude
-                    if distance <= 7 then
-                        if promptObj then
-                            fireproximityprompt(promptObj)
-                        end
+                    if distance <= 8 then
+                        pcall(function()
+                            for _, prompt in ipairs(obj:GetDescendants()) do
+                                if prompt:IsA("ProximityPrompt") then
+                                    fireproximityprompt(prompt)
+                                end
+                            end
+                        end)
                         pcall(function()
                             if firetouchinterest then
                                 firetouchinterest(rootPart, targetPart, 0)
@@ -311,9 +447,13 @@ local function registerEggItem(obj)
                             end
                         end)
                         
-                        task.wait(0.2)
-                        local basePos = getPlayerBasePosition()
-                        humanoid:MoveTo(basePos)
+                        addHistoryItem(obj.Name)
+                        
+                        if autoReturnEnabled then
+                            task.wait(0.2)
+                            local basePos = getPlayerBasePosition()
+                            humanoid:MoveTo(basePos)
+                        end
                         
                         if conn then conn:Disconnect() end
                     end
@@ -344,4 +484,4 @@ Workspace.DescendantAdded:Connect(function(obj)
     pcall(function() registerEggItem(obj) end)
 end)
 
-print("CeboFinder Custom Mod erfolgreich gestartet!")
+print("CeboFinder Pro geladen! Alle Tabs sind jetzt aktiv.")
