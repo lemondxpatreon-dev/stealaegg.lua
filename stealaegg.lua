@@ -1,4 +1,4 @@
--- CeboFinder - Steal an Egg (Game ID: 10563114921) Final Backend Pro-Filter
+-- CeboFinder - Backend Attribute & Prompt Scanner (Game ID: 10563114921)
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -6,7 +6,6 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Altes UI sicher entfernen
 pcall(function()
     if CoreGui:FindFirstChild("CeboFinderMobile") then CoreGui.CeboFinderMobile:Destroy() end
     if LocalPlayer.PlayerGui:FindFirstChild("CeboFinderMobile") then LocalPlayer.PlayerGui.CeboFinderMobile:Destroy() end
@@ -18,7 +17,7 @@ local success = pcall(function() ScreenGui.Parent = CoreGui end)
 if not success then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 ScreenGui.ResetOnSpawn = false
 
--- Hauptfenster
+-- UI Frame Setup
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 520, 0, 320)
 MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
@@ -31,7 +30,6 @@ local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 8)
 MainCorner.Parent = MainFrame
 
--- Titel & Status
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(0, 140, 0, 35)
 TitleLabel.Position = UDim2.new(0, 15, 0, 10)
@@ -47,14 +45,14 @@ local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(0, 240, 0, 20)
 StatusLabel.Position = UDim2.new(0, 15, 0, 32)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "■ Backend Prompt Filter Active"
+StatusLabel.Text = "■ Live Backend Attribute Scan"
 StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
--- Verschiebbarer Kreis (Hide Button)
+-- Floating Toggle Button
 local FloatingBtn = Instance.new("TextButton")
 FloatingBtn.Size = UDim2.new(0, 50, 0, 50)
 FloatingBtn.Position = UDim2.new(0, 50, 0, 50)
@@ -90,7 +88,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Sidebar
+-- Sidebar Navigation
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 120, 0, 250)
 Sidebar.Position = UDim2.new(0, 15, 0, 55)
@@ -131,7 +129,7 @@ FloatingBtn.Activated:Connect(function()
     FloatingBtn.Visible = false
 end)
 
--- Feed
+-- Feed Scrolling Container
 local FeedScroll = Instance.new("ScrollingFrame")
 FeedScroll.Size = UDim2.new(0, 365, 0, 250)
 FeedScroll.Position = UDim2.new(0, 140, 0, 55)
@@ -149,46 +147,39 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     FeedScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end)
 
--- BACKEND-FILTER: Prüft ob es ein echtes Ei MIT ProximityPrompt (Stehlen-Interaktion) ist
-local function isRealCollectibleEggBackend(obj)
-    if not obj or not obj.Parent then return false end
-    local name = obj.Name:lower()
-    
-    -- Harter Ausschluss für jegliche Kollisionsboxen und Spots
-    if name:find("bounds") or name:find("spot") or name:find("fireinternal") or name:find("internal") or name:find("holder") or name:find("spawn") or name:find("zone") or name:find("area") or name:find("mesh") or name:find("plane") or name:find("cube") or name:find("pad") or name:find("room") or name:find("monkey") or name:find("gorilla") or name:find("batch") or name:find("ceiling") or name:find("pipe") or name:find("light") or name:find("whirlpool") or name:find("rock") or name:find("section") or name:find("panel") or name:find("wall") or name:find("floor") or name:find("interior") or name:find("point") then
-        return false
-    end
-    
-    -- Backend-Check: Das echte Ei MUSS einen ProximityPrompt besitzen (nur echte Eier haben das zum Stehlen!)
-    local hasPrompt = false
+-- BACKEND CHECK: Sucht nach ProximityPrompt mit der echten Stehlen-Action
+local function findStealPrompt(obj)
     for _, desc in ipairs(obj:GetDescendants()) do
         if desc:IsA("ProximityPrompt") then
-            hasPrompt = true
-            break
-        end
-    end
-    if not hasPrompt and obj:IsA("Model") then
-        for _, desc in ipairs(obj:GetDescendants()) do
-            if desc:IsA("ProximityPrompt") then
-                hasPrompt = true
-                break
+            local action = desc.ActionText:lower()
+            local object = desc.ObjectText:lower()
+            -- Prüft ob die Interaktion "Stehlen" oder "Steal" heißt (schließt Shops aus)
+            if action:find("stehlen") or action:find("steal") or object:find("egg") or object:find("ei") then
+                return desc
             end
         end
     end
-    
-    if not hasPrompt then return false end
-    
-    -- Name muss Ei enthalten
-    if name:find("egg") or name:find("ei") then
-        if obj:IsA("BasePart") or obj:IsA("Model") then
-            return true
-        end
-    end
-    
-    return false
+    return nil
 end
 
--- Eigene Base ermitteln
+local function isGenuineEgg(obj)
+    if not obj or not obj.Parent then return false end
+    local name = obj.Name:lower()
+    
+    -- Namensfilter für Map-Müll und Shops
+    if name:find("shop") or name:find("store") or name:find("bounds") or name:find("spot") or name:find("internal") or name:find("holder") or name:find("wall") or name:find("floor") or name:find("room") then
+        return false
+    end
+    
+    -- Backend Prompt Validation
+    local prompt = findStealPrompt(obj)
+    if prompt then
+        return true, prompt
+    end
+    
+    return false, nil
+end
+
 local function getPlayerBasePosition()
     for _, obj in ipairs(Workspace:GetDescendants()) do
         local name = obj.Name:lower()
@@ -206,7 +197,8 @@ local function getPlayerBasePosition()
 end
 
 local function registerEggItem(obj)
-    if not isRealCollectibleEggBackend(obj) then return end
+    local isEgg, promptObj = isGenuineEgg(obj)
+    if not isEgg then return end
     if FeedScroll:FindFirstChild(obj.Name .. "_" .. tostring(obj)) then return end
 
     local itemFrame = Instance.new("Frame")
@@ -220,7 +212,6 @@ local function registerEggItem(obj)
     iCorner.CornerRadius = UDim.new(0, 6)
     iCorner.Parent = itemFrame
 
-    -- Icon
     local icon = Instance.new("ImageLabel")
     icon.Size = UDim2.new(0, 36, 0, 36)
     icon.Position = UDim2.new(0, 7, 0, 7)
@@ -243,8 +234,8 @@ local function registerEggItem(obj)
     sub.Size = UDim2.new(0, 150, 0, 15)
     sub.Position = UDim2.new(0, 50, 0, 26)
     sub.BackgroundTransparency = 1
-    sub.Text = "Echtes Welt-Ei"
-    sub.TextColor3 = Color3.fromRGB(150, 150, 150)
+    sub.Text = "Verified Egg"
+    sub.TextColor3 = Color3.fromRGB(46, 204, 113)
     sub.TextSize = 11
     sub.Font = Enum.Font.Gotham
     sub.TextXAlignment = Enum.TextXAlignment.Left
@@ -280,22 +271,16 @@ local function registerEggItem(obj)
     jCorner.CornerRadius = UDim.new(0, 4)
     jCorner.Parent = joinBtn
     
-    -- HINGEHEN, PROXIMITY PROMPT AUSLÖSEN UND ZUR BASE ZURÜCKKEHREN
+    -- Steal Execution Logic
     stealBtn.Activated:Connect(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
             local humanoid = char.Humanoid
             local rootPart = char.HumanoidRootPart
             
-            local targetPart = nil
-            if obj:IsA("BasePart") then
-                targetPart = obj
-            elseif obj:IsA("Model") then
-                targetPart = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-            end
+            local targetPart = obj:IsA("BasePart") and obj or (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart"))
             
             if targetPart then
-                -- 1. Exakt zum echten Ei hinlaufen
                 humanoid:MoveTo(targetPart.Position)
                 
                 local conn
@@ -307,23 +292,15 @@ local function registerEggItem(obj)
                     
                     local distance = (rootPart.Position - targetPart.Position).Magnitude
                     if distance <= 7 then
-                        -- 2. ProximityPrompt direkt auslösen (Backend-Aktion)
-                        pcall(function()
-                            for _, prompt in ipairs(obj:GetDescendants()) do
-                                if prompt:IsA("ProximityPrompt") then
-                                    fireproximityprompt(prompt)
-                                end
-                            end
-                        end)
-                        pcall(function()
-                            if firetouchinterest then
-                                firetouchinterest(rootPart, targetPart, 0)
-                                task.wait(0.05)
-                                firetouchinterest(rootPart, targetPart, 1)
-                            end
-                        end)
+                        if promptObj then
+                            fireproximityprompt(promptObj)
+                        end
+                        if firetouchinterest then
+                            firetouchinterest(rootPart, targetPart, 0)
+                            task.wait(0.05)
+                            firetouchinterest(rootPart, targetPart, 1)
+                        end
                         
-                        -- 3. Automatisch zurück zur eigenen Base laufen
                         task.wait(0.2)
                         local basePos = getPlayerBasePosition()
                         humanoid:MoveTo(basePos)
@@ -348,7 +325,7 @@ local function registerEggItem(obj)
     end)
 end
 
--- Globaler Scan über den Workspace
+-- Scan Engine
 for _, obj in ipairs(Workspace:GetDescendants()) do
     pcall(function() registerEggItem(obj) end)
 end
@@ -358,4 +335,4 @@ Workspace.DescendantAdded:Connect(function(obj)
     pcall(function() registerEggItem(obj) end)
 end)
 
-print("CeboFinder Backend-Prompt Filter erfolgreich geladen!")
+print("CeboFinder Backend Scanner bereit.")
