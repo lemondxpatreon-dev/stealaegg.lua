@@ -1,256 +1,313 @@
--- CeboFinder Mobile REAL SCAN v2
--- LocalScript for an experience you own/manage. Place in StarterPlayerScripts.
--- Detects only Model objects, prioritizes explicit IsPet/IsEgg attributes, and avoids
--- counting every MeshPart/BasePart as a separate result.
--- This scans the CURRENT server only. Cross-server spawns require an authorized server-side feed.
+
+--[[
+    STEAL AN EGG - FREE SERVER FINDER
+    GUI + SERVER LIST + PLAYER FILTER + JOIN
+    PlaceId: 107778070777162
+
+    Hinweis:
+    Die öffentliche Roblox-API liefert Server-IDs
+    und Spielerzahlen, keine Live-Egg-Spawn-Daten.
+]]
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
 
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-local old = playerGui:FindFirstChild("CeboFinderRealSpawns")
-if old then old:Destroy() end
+local PLACE_ID = 107778070777162
 
-local C = {
-    bg = Color3.fromRGB(16,17,22), panel = Color3.fromRGB(25,27,34),
-    card = Color3.fromRGB(34,36,45), line = Color3.fromRGB(63,66,80),
-    text = Color3.fromRGB(245,246,250), muted = Color3.fromRGB(163,168,183),
-    blue = Color3.fromRGB(65,105,255), green = Color3.fromRGB(70,205,130)
+if not player then
+    return
+end
+
+local oldGui = player.PlayerGui:FindFirstChild("EggFinder")
+if oldGui then
+    oldGui:Destroy()
+end
+
+local state = {
+    servers = {},
+    filtered = {},
+    selectedPet = "",
+    busy = false,
+    minPlayers = 0,
+    maxPlayers = 100
 }
-local function make(class, props, parent)
-    local obj = Instance.new(class)
-    for k,v in pairs(props) do obj[k] = v end
-    obj.Parent = parent
-    return obj
-end
-local function corner(obj, radius)
-    Instance.new("UICorner", obj).CornerRadius = UDim.new(0, radius or 10)
-end
 
-local gui = make("ScreenGui", {
-    Name="CeboFinderRealSpawns", ResetOnSpawn=false, IgnoreGuiInset=false,
-    DisplayOrder=100, ZIndexBehavior=Enum.ZIndexBehavior.Sibling
-}, playerGui)
+local gui = Instance.new("ScreenGui")
+gui.Name = "EggFinder"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
--- Small floating reopen button; visible when panel is minimized.
-local reopen = make("TextButton", {
-    Name="ReopenButton", Size=UDim2.fromOffset(54,54), Position=UDim2.new(0,16,0.45,0),
-    BackgroundColor3=C.blue, Text="CF", TextColor3=C.text, Font=Enum.Font.GothamBold,
-    TextSize=18, BorderSizePixel=0, Visible=false, Active=true
-}, gui)
-corner(reopen, 27)
-make("UIStroke", {Color=C.green, Thickness=2}, reopen)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.fromOffset(390, 470)
+frame.Position = UDim2.new(0.5, -195, 0.5, -235)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = gui
 
-local main = make("Frame", {
-    Name="Main", AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.fromScale(0.5,0.5),
-    Size=UDim2.new(0.88,0,0.58,0), BackgroundColor3=C.bg, BorderSizePixel=0,
-    Active=true
-}, gui)
-main.Size = UDim2.new(0.88,0,0,390)
-main.Position = UDim2.new(0.5,0,0.5,0)
-corner(main, 15)
-make("UIStroke", {Color=C.line, Thickness=1.3}, main)
+Instance.new("UICorner", frame).CornerRadius =
+    UDim.new(0, 12)
 
-local header = make("Frame", {Size=UDim2.new(1,0,0,46), BackgroundColor3=C.panel, BorderSizePixel=0, Active=true}, main)
-corner(header, 15)
-make("TextLabel", {
-    Position=UDim2.new(0,12,0,0), Size=UDim2.new(1,-104,1,0), BackgroundTransparency=1,
-    Text="CeboFinder • REAL SCAN", TextColor3=C.text, Font=Enum.Font.GothamBold,
-    TextSize=15, TextXAlignment=Enum.TextXAlignment.Left
-}, header)
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -50, 0, 42)
+title.Position = UDim2.fromOffset(10, 2)
+title.BackgroundTransparency = 1
+title.Text = "EGG FINDER | FREE"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 21
+title.Font = Enum.Font.GothamBold
+title.Parent = frame
 
-local minimize = make("TextButton", {
-    AnchorPoint=Vector2.new(1,0.5), Position=UDim2.new(1,-8,0.5,0), Size=UDim2.fromOffset(34,32),
-    BackgroundColor3=C.card, Text="—", TextColor3=C.text, Font=Enum.Font.GothamBold,
-    TextSize=19, BorderSizePixel=0
-}, header)
-corner(minimize, 9)
+local close = Instance.new("TextButton")
+close.Size = UDim2.fromOffset(32, 32)
+close.Position = UDim2.new(1, -38, 0, 7)
+close.Text = "X"
+close.TextSize = 18
+close.TextColor3 = Color3.new(1, 1, 1)
+close.BackgroundColor3 = Color3.fromRGB(180, 55, 65)
+close.Parent = frame
 
-local status = make("TextLabel", {
-    Position=UDim2.new(0,12,0,51), Size=UDim2.new(1,-24,0,30), BackgroundTransparency=1,
-    Text="Scannt sichtbare Eier/Pets in diesem Server …", TextColor3=C.muted,
-    Font=Enum.Font.Gotham, TextSize=11, TextWrapped=true, TextXAlignment=Enum.TextXAlignment.Left
-}, main)
-
-local refresh = make("TextButton", {
-    Position=UDim2.new(0,12,0,84), Size=UDim2.new(0.56,-8,0,36), BackgroundColor3=C.blue,
-    Text="Jetzt scannen", TextColor3=C.text, Font=Enum.Font.GothamBold, TextSize=13, BorderSizePixel=0
-}, main)
-corner(refresh, 9)
-local auto = make("TextButton", {
-    AnchorPoint=Vector2.new(1,0), Position=UDim2.new(1,-12,0,84), Size=UDim2.new(0.44,-8,0,36),
-    BackgroundColor3=C.card, Text="Auto: AUS", TextColor3=C.text, Font=Enum.Font.GothamBold,
-    TextSize=12, BorderSizePixel=0
-}, main)
-corner(auto, 9)
-
-local list = make("ScrollingFrame", {
-    Position=UDim2.new(0,10,0,128), Size=UDim2.new(1,-20,1,-138),
-    BackgroundTransparency=1, BorderSizePixel=0, ScrollBarThickness=3,
-    ScrollBarImageColor3=C.line, CanvasSize=UDim2.new(0,0,0,0),
-    AutomaticCanvasSize=Enum.AutomaticSize.Y
-}, main)
-make("UIListLayout", {Padding=UDim.new(0,6), SortOrder=Enum.SortOrder.LayoutOrder}, list)
-make("UIPadding", {PaddingBottom=UDim.new(0,6), PaddingTop=UDim.new(0,2)}, list)
-
-local function getIcon(obj)
-    local icon = obj:GetAttribute("IconImage") or obj:GetAttribute("Image")
-    if typeof(icon) == "number" then return "rbxassetid://"..icon end
-    if typeof(icon) == "string" and icon ~= "" then
-        if string.find(icon, "rbxassetid://", 1, true) then return icon end
-        if tonumber(icon) then return "rbxassetid://"..icon end
-    end
-    for _, d in ipairs(obj:GetDescendants()) do
-        if d:IsA("Decal") and d.Texture ~= "" then return d.Texture end
-        if d:IsA("ImageLabel") and d.Image ~= "" then return d.Image end
-    end
-    return ""
+local function createBox(placeholder, y)
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(1, -20, 0, 34)
+    box.Position = UDim2.fromOffset(10, y)
+    box.PlaceholderText = placeholder
+    box.Text = ""
+    box.ClearTextOnFocus = false
+    box.TextSize = 14
+    box.Font = Enum.Font.Gotham
+    box.TextColor3 = Color3.new(1, 1, 1)
+    box.BackgroundColor3 = Color3.fromRGB(42, 42, 55)
+    box.Parent = frame
+    Instance.new("UICorner", box).CornerRadius =
+        UDim.new(0, 7)
+    return box
 end
 
-local function isCandidate(obj)
-    -- Never show standalone MeshParts/Parts as individual pets.
-    if not obj:IsA("Model") then return false end
-    if obj:GetAttribute("IsPet") == true or obj:GetAttribute("IsEgg") == true then return true end
-
-    local n = string.lower(obj.Name)
-    -- Fallback only for model names that clearly identify an egg or pet.
-    local nameMatch = string.find(n, "egg", 1, true) or string.find(n, "pet", 1, true)
-    if not nameMatch then return false end
-
-    -- Ignore generic model containers and models with no physical contents.
-    local hasGeometry = false
-    for _, d in ipairs(obj:GetDescendants()) do
-        if d:IsA("BasePart") then hasGeometry = true break end
-    end
-    if not hasGeometry then return false end
-
-    -- If this is a nested model inside another matching egg/pet model, count only the outer model.
-    local parent = obj.Parent
-    while parent and parent ~= Workspace do
-        if parent:IsA("Model") then
-            if parent:GetAttribute("IsPet") == true or parent:GetAttribute("IsEgg") == true then return false end
-            local pn = string.lower(parent.Name)
-            if string.find(pn, "egg", 1, true) or string.find(pn, "pet", 1, true) then return false end
-        end
-        parent = parent.Parent
-    end
-    return true
+local function createButton(text, x, y, width)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.fromOffset(width, 35)
+    b.Position = UDim2.fromOffset(x, y)
+    b.Text = text
+    b.TextSize = 13
+    b.Font = Enum.Font.GothamBold
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.BackgroundColor3 = Color3.fromRGB(100, 75, 180)
+    b.Parent = frame
+    Instance.new("UICorner", b).CornerRadius =
+        UDim.new(0, 7)
+    return b
 end
 
-local function clearCards()
+local petBox = createBox(
+    "Pet- oder Egg-Name (z. B. Divine)",
+    48
+)
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -20, 0, 26)
+status.Position = UDim2.fromOffset(10, 86)
+status.BackgroundTransparency = 1
+status.Text = "Status: Bereit"
+status.TextColor3 = Color3.fromRGB(210, 210, 220)
+status.TextSize = 13
+status.Font = Enum.Font.Gotham
+status.TextXAlignment = Enum.TextXAlignment.Left
+status.Parent = frame
+
+local refreshButton = createButton(
+    "SERVER LADEN", 10, 116, 180
+)
+
+local filterButton = createButton(
+    "FILTER", 200, 116, 180
+)
+
+local list = Instance.new("ScrollingFrame")
+list.Size = UDim2.new(1, -20, 0, 250)
+list.Position = UDim2.fromOffset(10, 158)
+list.BackgroundColor3 = Color3.fromRGB(32, 32, 43)
+list.BorderSizePixel = 0
+list.ScrollBarThickness = 6
+list.CanvasSize = UDim2.new(0, 0, 0, 0)
+list.Parent = frame
+
+Instance.new("UICorner", list).CornerRadius =
+    UDim.new(0, 8)
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 5)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = list
+
+local function clearList()
     for _, child in ipairs(list:GetChildren()) do
-        if child:IsA("Frame") or child:IsA("TextLabel") then child:Destroy() end
-    end
-end
-
-local function addCard(obj, index)
-    local displayName = obj:GetAttribute("DisplayName")
-    if typeof(displayName) ~= "string" or displayName == "" then displayName = obj.Name end
-    local rarity = obj:GetAttribute("Rarity")
-    if typeof(rarity) ~= "string" or rarity == "" then rarity = "Not provided" end
-    local income = obj:GetAttribute("Income")
-    if income == nil then income = "Not provided" end
-
-    local card = make("Frame", {Size=UDim2.new(1,-3,0,68), BackgroundColor3=C.card, BorderSizePixel=0, LayoutOrder=index}, list)
-    corner(card, 10)
-    make("UIStroke", {Color=C.line, Thickness=1, Transparency=0.25}, card)
-    local img = make("ImageLabel", {
-        Position=UDim2.new(0,6,0,6), Size=UDim2.fromOffset(56,56), BackgroundColor3=C.panel,
-        BorderSizePixel=0, ScaleType=Enum.ScaleType.Crop, Image=getIcon(obj)
-    }, card)
-    corner(img, 8)
-    if img.Image == "" then
-        make("TextLabel", {Size=UDim2.fromScale(1,1), BackgroundTransparency=1, Text="NO\nIMAGE",
-            TextColor3=C.muted, Font=Enum.Font.GothamBold, TextSize=9, TextWrapped=true}, img)
-    end
-    make("TextLabel", {
-        Position=UDim2.new(0,70,0,5), Size=UDim2.new(1,-76,0,20), BackgroundTransparency=1,
-        Text=displayName, TextColor3=C.text, Font=Enum.Font.GothamBold, TextSize=13,
-        TextXAlignment=Enum.TextXAlignment.Left, TextTruncate=Enum.TextTruncate.AtEnd
-    }, card)
-    make("TextLabel", {
-        Position=UDim2.new(0,70,0,26), Size=UDim2.new(1,-76,0,17), BackgroundTransparency=1,
-        Text="Rarity: "..rarity, TextColor3=C.muted, Font=Enum.Font.Gotham, TextSize=10,
-        TextXAlignment=Enum.TextXAlignment.Left, TextTruncate=Enum.TextTruncate.AtEnd
-    }, card)
-    make("TextLabel", {
-        Position=UDim2.new(0,70,0,43), Size=UDim2.new(1,-76,0,17), BackgroundTransparency=1,
-        Text="Income: "..tostring(income), TextColor3=C.green, Font=Enum.Font.GothamSemibold, TextSize=10,
-        TextXAlignment=Enum.TextXAlignment.Left, TextTruncate=Enum.TextTruncate.AtEnd
-    }, card)
-end
-
-local function scan()
-    clearCards()
-    local found, seen = {}, {}
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if not seen[obj] and isCandidate(obj) then
-            seen[obj] = true
-            table.insert(found, obj)
+        if child:IsA("TextButton")
+            or child:IsA("TextLabel") then
+            child:Destroy()
         end
     end
-    table.sort(found, function(a,b) return a.Name:lower() < b.Name:lower() end)
-    for i,obj in ipairs(found) do addCard(obj, i) end
+end
 
-    if #found == 0 then
-        local empty = make("TextLabel", {
-            Size=UDim2.new(1,-3,0,62), BackgroundColor3=C.card, BorderSizePixel=0,
-            Text="Keine klar erkennbaren Ei-/Pet-Modelle gefunden.\nObjektnamen oder Attribute müssen angepasst werden.",
-            TextColor3=C.muted, Font=Enum.Font.Gotham, TextSize=11, TextWrapped=true, LayoutOrder=1
-        }, list)
-        corner(empty, 10)
-        status.Text = "0 Eier/Pets • nur aktueller Server"
+local function showMessage(text)
+    clearList()
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -12, 0, 50)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextWrapped = true
+    label.TextSize = 14
+    label.Text = text
+    label.Parent = list
+
+    list.CanvasSize = UDim2.new(0, 0, 0, 55)
+end
+
+local function renderServers()
+    clearList()
+
+    local count = 0
+
+    for _, server in ipairs(state.servers) do
+        local matchesPet = state.selectedPet == ""
+        local matchesPlayers =
+            server.Players >= state.minPlayers
+            and server.Players <= state.maxPlayers
+
+        -- Die öffentliche API liefert keine Pet-Namen.
+        -- Ein gesetzter Pet-Filter kann daher nicht
+        -- anhand der Serverliste bestätigt werden.
+
+        if matchesPet and matchesPlayers then
+            count += 1
+
+            local b = Instance.new("TextButton")
+            b.Size = UDim2.new(1, -8, 0, 48)
+            b.BackgroundColor3 = Color3.fromRGB(48, 48, 64)
+            b.TextColor3 = Color3.new(1, 1, 1)
+            b.TextSize = 13
+            b.Font = Enum.Font.Gotham
+            b.TextWrapped = true
+            b.Text = string.format(
+                "Server %d | Spieler: %d/%d | Join",
+                count,
+                server.playing,
+                server.maxPlayers
+            )
+            b.Parent = list
+
+            b.Activated:Connect(function()
+                if state.busy then
+                    return
+                end
+
+                state.busy = true
+                status.Text = "Teleport wird gestartet..."
+
+                local ok, err = pcall(function()
+                    TeleportService:TeleportToPlaceInstance(
+                        PLACE_ID,
+                        server.id,
+                        player
+                    )
+                end)
+
+                if not ok then
+                    status.Text = "Teleport fehlgeschlagen"
+                    warn(err)
+                    state.busy = false
+                end
+            end)
+        end
+    end
+
+    list.CanvasSize = UDim2.new(0, 0, 0, count * 53)
+
+    if count == 0 then
+        showMessage("Keine Server gefunden.")
     else
-        status.Text = tostring(#found).." Ei-/Pet-Modelle • nur aktueller Server"
+        status.Text = "Server gefunden: " .. count
     end
 end
 
-local autoOn = false
-refresh.Activated:Connect(function() pcall(scan) end)
-auto.Activated:Connect(function()
-    autoOn = not autoOn
-    auto.Text = autoOn and "Auto: AN" or "Auto: AUS"
-    auto.BackgroundColor3 = autoOn and Color3.fromRGB(38,91,69) or C.card
-end)
-minimize.Activated:Connect(function()
-    main.Visible = false
-    reopen.Visible = true
-end)
-reopen.Activated:Connect(function()
-    main.Visible = true
-    reopen.Visible = false
+local function loadServers()
+    if state.busy then
+        return
+    end
+
+    status.Text = "Lade öffentliche Server..."
+    refreshButton.Text = "LÄDT..."
+
+    local url =
+        "https://games.roblox.com/v1/games/"
+        .. tostring(PLACE_ID)
+        .. "/servers/Public?sortOrder=Asc&limit=100"
+
+    local ok, response = pcall(function()
+        return game:HttpGet(url)
+    end)
+
+    refreshButton.Text = "SERVER LADEN"
+
+    if not ok then
+        status.Text = "HTTP-Anfrage fehlgeschlagen"
+        showMessage(
+            "Serverliste nicht erreichbar. "
+            .. "Prüfe die HTTP-Unterstützung."
+        )
+        warn(response)
+        return
+    end
+
+    local decoded, data = pcall(function()
+        return HttpService:JSONDecode(response)
+    end)
+
+    if not decoded or type(data) ~= "table"
+        or type(data.data) ~= "table" then
+        status.Text = "Antwort konnte nicht gelesen werden"
+        showMessage("Die API lieferte keine gültige Serverliste.")
+        return
+    end
+
+    state.servers = data.data
+    status.Text = "Server geladen: "
+        .. tostring(#state.servers)
+
+    renderServers()
+end
+
+filterButton.Activated:Connect(function()
+    state.selectedPet = petBox.Text:lower()
+
+    if state.selectedPet ~= "" then
+        status.Text =
+            "Pet-Filter gespeichert: " .. petBox.Text
+        showMessage(
+            "Für Pet-Filter fehlen Spawn-Daten. "
+            .. "Die öffentliche Serverliste enthält "
+            .. "nur Serverinformationen."
+        )
+    else
+        status.Text = "Pet-Filter deaktiviert"
+        renderServers()
+    end
 end)
 
--- Drag by header: supports mouse and touch on mobile.
-local dragging, dragStart, startPos, dragInput = false, nil, nil, nil
-header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = main.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-header.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input == dragInput or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
+refreshButton.Activated:Connect(loadServers)
+
+close.Activated:Connect(function()
+    gui:Destroy()
 end)
 
-task.spawn(function()
-    pcall(scan)
-    while gui.Parent do
-        task.wait(4)
-        if autoOn then pcall(scan) end
-    end
-end)
+-- GUI beim Start anzeigen
+showMessage("Klicke auf SERVER LADEN.")
+loadServers()
