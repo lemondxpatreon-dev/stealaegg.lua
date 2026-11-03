@@ -108,7 +108,7 @@ if not v1 then
     instance4.Size = UDim2.new(1, -30, 0, 28)
     instance4.Position = UDim2.new(0, 15, 0, 18)
     instance4.BackgroundTransparency = 1
-    instance4.Text = "175 Auto Joiner Free"
+    instance4.Text = "Noahs Hub | SAE"
     instance4.TextColor3 = Color3.fromRGB(255, 220, 220)
     instance4.TextSize = 18
     instance4.Font = Enum.Font.GothamBlack
@@ -237,8 +237,34 @@ f6()
 local v6 = syn and syn.request or http and http.request or http_request or request
 
 local function f7(p2)
-    local v7
-    return v7
+    if type(p2) ~= "string" or p2 == "" then
+        return nil
+    end
+
+    local ok, result = pcall(function()
+        if v6 then
+            local response = v6({
+                Url = p2,
+                Method = "GET",
+                Headers = {["Content-Type"] = "application/json"},
+            })
+            if type(response) == "table" then
+                local status = tonumber(response.StatusCode or response.status_code)
+                if status and (status < 200 or status >= 300) then
+                    return nil
+                end
+                return response.Body or response.body
+            end
+            return nil
+        end
+
+        return game:HttpGet(p2)
+    end)
+
+    if ok and type(result) == "string" and result ~= "" then
+        return result
+    end
+    return nil
 end
 
 local function getBody(p3)
@@ -1009,7 +1035,7 @@ local parent8 = getInstance(
     "TextLabel",
     {
         Size = UDim2.new(1, -20, 0, 22), Position = UDim2.new(0, 14, 0, 10),
-        BackgroundTransparency = 1, Text = "175 Auto Joiner", TextColor3 = color, TextSize = 14,
+        BackgroundTransparency = 1, Text = "Noahs Hub | SAE", TextColor3 = color, TextSize = 14,
         Font = gothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 4, Parent = parent7,
     }
 )
@@ -2429,6 +2455,24 @@ instance29.MouseButton1Click:Connect(
     end
 )
 
+local function normalizeIcon(iconValue)
+    local raw = tostring(iconValue or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if raw == "" then
+        return ""
+    end
+
+    if raw:match("^rbxassetid://%d+$") then
+        return raw
+    end
+
+    local id = raw:match("[?&]id=(%d+)") or raw:match("(%d+)")
+    if id then
+        return "rbxassetid://" .. id
+    end
+
+    return ""
+end
+
 local function f33(p37)
     if not p37 or f15(p37) then
         return
@@ -2509,17 +2553,26 @@ local function f33(p37)
 
     makeCorner(parent23, 8)
 
-    local v80 = normalizeIcon and normalizeIcon(p37.icon or p37.iconId or "") or tostring(
-        p37.icon or ""
-    )
+    local v80 = normalizeIcon(p37.icon or p37.iconId or "")
 
-    getInstance(
-        "ImageLabel",
-        {
-            Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Image = v80,
-            ScaleType = Enum.ScaleType.Fit, ZIndex = 6, Parent = parent23,
-        }
-    )
+    if v80 ~= "" then
+        getInstance(
+            "ImageLabel",
+            {
+                Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Image = v80,
+                ScaleType = Enum.ScaleType.Fit, ZIndex = 6, Parent = parent23,
+            }
+        )
+    else
+        getInstance(
+            "TextLabel",
+            {
+                Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+                Text = "🐾", TextSize = 22, Font = gothamBold,
+                TextColor3 = color, ZIndex = 6, Parent = parent23,
+            }
+        )
+    end
 
     local name2 = getInstance(
         "TextLabel",
@@ -2612,14 +2665,6 @@ local function f33(p37)
         map2[eggUid] = {wrapper = instance41, data = p37, name = name2, sub = sub, gen = gen,}
     end
 
-    local detectedCount = 0
-    for _, entry in pairs(map2) do
-        if entry.wrapper and entry.wrapper.Parent then
-            detectedCount = detectedCount + 1
-        end
-    end
-    instance28.Text = tostring(detectedCount) .. " detected"
-
     local v81
     local count5 = 0
     local huge = math.huge
@@ -2638,7 +2683,7 @@ local function f33(p37)
         end
     end
 
-    if count5 > 8 and v82 and v82.wrapper then
+    if count5 > 100 and v82 and v82.wrapper then
         pcall(
             function()
                 v82.wrapper:Destroy()
@@ -2859,22 +2904,21 @@ task.spawn(
                         local v94 = f34(value27)
                         local mps5 = tonumber(v94.Value) or 0
 
-                        -- Keep every valid snapshot egg visible even if the local
-                        -- directory module is unavailable and its value is unknown.
-                        count7 = count7 + 1
-                        pcall(
-                            f33,
-                            {
-                                name = v94.Name, icon = v94.Icon, mps = mps5,
-                                jobId = tostring(game.JobId), placeId = tostring(game.PlaceId),
-                                players = tostring(#players:GetPlayers()),
-                                maxPlayers = tostring(players.MaxPlayers), eggUid = v94.Uid,
-                                spawnedAt = os.time(), lastSeen = os.time(), mutation = "",
-                                silent = false,
-                            }
-                        )
-
                         if mps5 >= 50000000 then
+                            count7 = count7 + 1
+
+                            pcall(
+                                f33,
+                                {
+                                    name = v94.Name, icon = v94.Icon, mps = mps5,
+                                    jobId = tostring(game.JobId), placeId = tostring(game.PlaceId),
+                                    players = tostring(#players:GetPlayers()),
+                                    maxPlayers = tostring(players.MaxPlayers), eggUid = v94.Uid,
+                                    spawnedAt = os.time(), lastSeen = os.time(), mutation = "",
+                                    silent = false,
+                                }
+                            )
+
                             pcall(
                                 f11,
                                 {
@@ -2885,14 +2929,6 @@ task.spawn(
                             )
                         end
                     end
-
-                    local visibleCount = 0
-                    for _, entry in pairs(map2) do
-                        if entry.wrapper and entry.wrapper.Parent then
-                            visibleCount = visibleCount + 1
-                        end
-                    end
-                    instance28.Text = tostring(visibleCount) .. " detected"
 
                     if getNetworking and getNetworking() then
                         f17(true, count7 > 0 and count7 .. " local" or "Scan OK")
@@ -3226,4 +3262,4 @@ task.spawn(
 )
 
 seen3[tostring(game.JobId)] = true
-print("[175 Auto Joiner Free] Loaded + Cebo-style hunt")
+print("[Noahs Hub | SAE] Loaded + Cebo-style hunt")
